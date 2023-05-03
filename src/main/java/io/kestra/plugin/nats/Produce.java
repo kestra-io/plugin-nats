@@ -5,9 +5,8 @@ import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
-import io.nats.client.*;
-import io.nats.client.api.AckPolicy;
-import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.Connection;
+import io.nats.client.Message;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.NatsMessage;
 import io.reactivex.BackpressureStrategy;
@@ -16,12 +15,13 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.net.URI;
-import java.time.ZonedDateTime;
-import java.util.*;
-
-import static io.kestra.core.utils.Rethrow.throwConsumer;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 
 @SuperBuilder
 @ToString
@@ -77,11 +77,7 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
     private Object from;
 
     public Output run(RunContext runContext) throws Exception {
-        Options.Builder connectOptionsBuilder = Options.builder();
-        if (username != null) {
-            connectOptionsBuilder.userInfo(runContext.render(username), runContext.render(password));
-        }
-        Connection connection = Nats.connect(connectOptionsBuilder.build());
+        Connection connection = connect(runContext);
 
         int messagesCount;
         String renderedSubject = runContext.render(subject);
@@ -93,14 +89,15 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
                     messagesCount = publish(runContext, connection, renderedSubject, Flowable.create(FileSerde.reader(inputStream), BackpressureStrategy.BUFFER));
                 }
             } else {
-                messagesCount = publish(runContext, connection, renderedSubject,  Flowable.fromArray(((List<?>) this.from).toArray()));
+                messagesCount = publish(runContext, connection, renderedSubject, Flowable.fromArray(((List<?>) this.from).toArray()));
             }
 
-        }else {
+        } else {
             connection.publish(this.producerMessage(renderedSubject, runContext.render((Map<String, Object>) this.from)));
             messagesCount = 1;
         }
 
+        connection.flushBuffer();
         connection.close();
 
         return Output.builder()
@@ -118,13 +115,11 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
 
     private Message producerMessage(String subject, Map<String, Object> message) {
         Headers headers = new Headers();
-        ((Map<String, Object>) message.getOrDefault("headers", Collections.emptyMap())).entrySet().forEach(entry -> {
-            String headerKey = entry.getKey();
-            Object headerValue = entry.getValue();
-            if(headerValue instanceof Collection<?> headerValues){
+        ((Map<String, Object>) message.getOrDefault("headers", Collections.emptyMap())).forEach((headerKey, headerValue) -> {
+            if (headerValue instanceof Collection<?> headerValues) {
                 headers.add(headerKey, (Collection<String>) headerValues);
-            }else {
-                headers.add(headerKey, new String[]{(String) headerValue});
+            } else {
+                headers.add(headerKey, (String) headerValue);
             }
         });
 

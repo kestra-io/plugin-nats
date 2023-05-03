@@ -1,12 +1,10 @@
 package io.kestra.plugin.nats;
 
 import io.kestra.core.models.annotations.PluginProperty;
-import io.nats.client.api.DeliverPolicy;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
-import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 

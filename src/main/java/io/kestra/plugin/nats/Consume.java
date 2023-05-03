@@ -5,7 +5,10 @@ import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
-import io.nats.client.*;
+import io.nats.client.Connection;
+import io.nats.client.JetStreamOptions;
+import io.nats.client.Message;
+import io.nats.client.PullSubscribeOptions;
 import io.nats.client.api.AckPolicy;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.DeliverPolicy;
@@ -66,14 +69,10 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
     @Builder.Default
     private DeliverPolicy deliverPolicy = DeliverPolicy.All;
     @Builder.Default
-    private boolean deserializeAsString = true;
+    private Deserializer valueDeserializer = Deserializer.TO_STRING;
 
     public Output run(RunContext runContext) throws Exception {
-        Options.Builder connectOptionsBuilder = Options.builder();
-        if (username != null) {
-            connectOptionsBuilder.userInfo(runContext.render(username), runContext.render(password));
-        }
-        Connection connection = Nats.connect(connectOptionsBuilder.build());
+        Connection connection = connect(runContext);
         List<Message> fetchedMessages = connection.jetStream(JetStreamOptions.DEFAULT_JS_OPTIONS).subscribe(
                 runContext.render(subject),
                 PullSubscribeOptions.builder()
@@ -97,8 +96,7 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
                         .map(headers -> headers.entrySet().toArray(Map.Entry[]::new))
                         .orElse(new Map.Entry[0])
                 ));
-                byte[] data = message.getData();
-                map.put("data", deserializeAsString ? new String(data) : data);
+                map.put("data", valueDeserializer.apply(message.getData()));
                 map.put("timestamp", message.metaData().timestamp().toInstant());
 
                 FileSerde.write(output, map);

@@ -1,4 +1,3 @@
-
 package io.kestra.plugin.nats;
 
 import io.kestra.core.runners.RunContext;
@@ -11,7 +10,10 @@ import jakarta.inject.Inject;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.net.URI;
 import java.time.Duration;
 import java.util.List;
@@ -24,8 +26,8 @@ import static org.hamcrest.Matchers.*;
 
 class ProduceTest extends NatsTest {
     private static final String BASE_SUBJECT = "kestra.produce";
-    private static final String SOME_HEADER_KEY = "someHeaderKey";
-    private static final String SOME_HEADER_VALUE = "someHeaderValue";
+    public static final String SOME_HEADER_KEY = "someHeaderKey";
+    public static final String SOME_HEADER_VALUE = "someHeaderValue";
 
     @Inject
     protected RunContextFactory runContextFactory;

@@ -59,11 +59,10 @@ public interface ConsumeInterface {
 
 
     @Schema(
-        title = "Whether or not the messages bytes should be converted to String",
-        description = "If false, will output the raw bytes"
+        title = "Which deserializer to use when retrieving data"
     )
     @PluginProperty
-    boolean isDeserializeAsString();
+    Deserializer getValueDeserializer();
 
 
     @Schema(

@@ -1,15 +1,15 @@
-id: couchbase-listen
+id: nats-listen
 namespace: io.kestra.tests
 
 triggers:
   - id: watch
     type: io.kestra.plugin.nats.Trigger
-    url: ''
-    username: 'Administrator'
-    password: 'password'
-    fetchType: FETCH_ONE
-    query: |
-      SELECT * FROM kestra.`some-scope`.`some-collection` WHERE c_string='A collection doc'
+    url: localhost:4222
+    username: kestra
+    password: k3stra
+    subject: kestra.trigger
+    durableId: natsTrigger
+    deliverPolicy: Last
 
 tasks:
   - id: end

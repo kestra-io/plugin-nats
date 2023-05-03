@@ -1,4 +1,3 @@
-
 package io.kestra.plugin.nats;
 
 import io.kestra.core.runners.RunContextFactory;
@@ -20,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -36,7 +36,7 @@ class ConsumeTest extends NatsTest {
 
         AtomicReference<Instant> messageInstant = new AtomicReference<>();
         CountDownLatch countDownLatch = new CountDownLatch(1);
-        JetStreamSubscription subscription = connection.jetStream().subscribe("kestra.topic", PullSubscribeOptions.builder()
+        JetStreamSubscription subscription = connection.jetStream().subscribe("kestra.consumeMessageFromSubject.topic", PullSubscribeOptions.builder()
             .configuration(ConsumerConfiguration.builder().deliverPolicy(DeliverPolicy.New).build())
             .build()
         );
@@ -56,14 +56,14 @@ class ConsumeTest extends NatsTest {
         String expectedHeaderKey = "someHeaderKey";
         String expectedHeaderValue = "someHeaderValue";
         headers.add(expectedHeaderKey, expectedHeaderValue);
-        connection.publish("kestra.topic", headers, "Hello Kestra".getBytes());
-        connection.publish("kestra.anotherTopic", "Hello Again".getBytes());
+        connection.publish("kestra.consumeMessageFromSubject.topic", headers, "Hello Kestra".getBytes());
+        connection.publish("kestra.consumeMessageFromSubject.anotherTopic", "Hello Again".getBytes());
 
         Consume.Output output = Consume.builder()
             .url("localhost:4222")
             .username("kestra")
             .password("k3stra")
-            .subject("kestra.>")
+            .subject("kestra.consumeMessageFromSubject.>")
             .durableId("consumeMessageFromSubject-" + UUID.randomUUID())
             .deliverPolicy(DeliverPolicy.LastPerSubject)
             .pollDuration(Duration.ofSeconds(1))
@@ -73,18 +73,20 @@ class ConsumeTest extends NatsTest {
         List<Map<String, Object>> result = toMessages(output);
 
         countDownLatch.await();
+        connection.close();
+
         assertThat(output.getMessagesCount(), is(2));
         assertThat(result.size(), is(2));
         assertThat(result, Matchers.contains(
             Matchers.<Map<String, Object>>allOf(
-                Matchers.hasEntry("subject", "kestra.topic"),
+                Matchers.hasEntry("subject", "kestra.consumeMessageFromSubject.topic"),
                 Matchers.hasEntry(is("headers"), new HeaderMatcher(hasEntry(is(expectedHeaderKey), contains(expectedHeaderValue)))),
                 Matchers.hasEntry("data", "Hello Kestra"),
                 Matchers.hasEntry("timestamp", messageInstant.get())
             )
             ,
             Matchers.<Map<String, Object>>allOf(
-                Matchers.hasEntry("subject", "kestra.anotherTopic"),
+                Matchers.hasEntry("subject", "kestra.consumeMessageFromSubject.anotherTopic"),
                 Matchers.hasEntry(is("headers"), new HeaderMatcher(anEmptyMap())),
                 Matchers.hasEntry("data", "Hello Again")
             )
@@ -93,18 +95,19 @@ class ConsumeTest extends NatsTest {
 
     @Test
     void consumeRawBytes() throws Exception {
-        Connection connection = Nats.connect(Options.builder().server("localhost:4222").userInfo("kestra", "k3stra").build());
-        connection.publish("kestra.topic", "Some raw bytes".getBytes());
+        try (Connection connection = Nats.connect(Options.builder().server("localhost:4222").userInfo("kestra", "k3stra").build())) {
+            connection.publish("kestra.consumeRawBytes.topic", "Some raw bytes".getBytes());
+        }
 
         Consume.Output output = Consume.builder()
             .url("localhost:4222")
             .username("kestra")
             .password("k3stra")
-            .subject("kestra.topic")
+            .subject("kestra.consumeRawBytes.topic")
             .durableId("consumeRawBytes-" + UUID.randomUUID())
             .deliverPolicy(DeliverPolicy.LastPerSubject)
             .pollDuration(Duration.ofSeconds(1))
-            .deserializeAsString(false)
+            .valueDeserializer(Deserializer.BYTES)
             .build()
             .run(runContextFactory.of());
 
@@ -121,7 +124,7 @@ class ConsumeTest extends NatsTest {
     void consumeSince() throws Exception {
         Connection connection = Nats.connect(Options.builder().server("localhost:4222").userInfo("kestra", "k3stra").build());
 
-        JetStreamSubscription subscription = connection.jetStream().subscribe("kestra.>", PullSubscribeOptions.builder()
+        JetStreamSubscription subscription = connection.jetStream().subscribe("kestra.consumeSince.>", PullSubscribeOptions.builder()
             .configuration(ConsumerConfiguration.builder().deliverPolicy(DeliverPolicy.New).build())
             .build()
         );
@@ -139,16 +142,18 @@ class ConsumeTest extends NatsTest {
             }
         ));
 
-        connection.publish("kestra.topic", "First message".getBytes());
+        connection.publish("kestra.consumeSince.topic", "First message".getBytes());
         Thread.sleep(5);
-        connection.publish("kestra.anotherTopic", "Second message".getBytes());
+        connection.publish("kestra.consumeSince.anotherTopic", "Second message".getBytes());
 
         countDownLatch.await();
+        connection.close();
+
         Consume.Output output = Consume.builder()
             .url("localhost:4222")
             .username("kestra")
             .password("k3stra")
-            .subject("kestra.>")
+            .subject("kestra.consumeSince.>")
             .durableId("consumeSince-" + UUID.randomUUID())
             .deliverPolicy(DeliverPolicy.ByStartTime)
             .pollDuration(Duration.ofSeconds(1))
