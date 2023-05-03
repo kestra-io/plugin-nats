@@ -2,6 +2,7 @@ package io.kestra.plugin.nats;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
@@ -15,6 +16,8 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
+import javax.validation.constraints.NotBlank;
+import javax.validation.constraints.NotNull;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URI;
@@ -72,28 +75,45 @@ import java.util.Map;
         ),
     }
 )
-public class Produce extends NatsConnection implements RunnableTask<Produce.Output>, ProduceInterface {
+public class Produce extends NatsConnection implements RunnableTask<Produce.Output> {
+    @Schema(
+        title = "Subject to produce message to"
+    )
+    @PluginProperty(dynamic = true)
+    @NotBlank
+    @NotNull
     private String subject;
+    @Schema(
+        title = "Source of message(s) to send",
+        description = "Can be an internal storage uri, a map or a list." +
+            "with the following format: headers, data",
+        anyOf = {String.class, List.class, Map.class}
+    )
+    @NotNull
+    @PluginProperty(dynamic = true)
     private Object from;
 
     public Output run(RunContext runContext) throws Exception {
         Connection connection = connect(runContext);
 
         int messagesCount;
-        String renderedSubject = runContext.render(subject);
 
         if (this.from instanceof String || this.from instanceof List) {
-            if (this.from instanceof String) {
-                URI from = new URI(runContext.render((String) this.from));
+            if (this.from instanceof String fromStr) {
+                URI from = new URI(runContext.render(fromStr));
+                if (!from.getScheme().equals("kestra")) {
+                    throw new Exception("Invalid from parameter, must be a Kestra internal storage URI");
+                }
+
                 try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.uriToInputStream(from)))) {
-                    messagesCount = publish(runContext, connection, renderedSubject, Flowable.create(FileSerde.reader(inputStream), BackpressureStrategy.BUFFER));
+                    messagesCount = publish(runContext, connection, Flowable.create(FileSerde.reader(inputStream), BackpressureStrategy.BUFFER));
                 }
             } else {
-                messagesCount = publish(runContext, connection, renderedSubject, Flowable.fromArray(((List<?>) this.from).toArray()));
+                messagesCount = publish(runContext, connection, Flowable.fromArray(((List<?>) this.from).toArray()));
             }
 
         } else {
-            connection.publish(this.producerMessage(renderedSubject, runContext.render((Map<String, Object>) this.from)));
+            connection.publish(this.producerMessage(runContext.render(this.subject), runContext.render((Map<String, Object>) this.from)));
             messagesCount = 1;
         }
 
@@ -105,9 +125,9 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
             .build();
     }
 
-    private Integer publish(RunContext runContext, Connection connection, String renderedSubject, Flowable<Object> messagesFlowable) {
+    private Integer publish(RunContext runContext, Connection connection, Flowable<Object> messagesFlowable) {
         return messagesFlowable.map(object -> {
-                connection.publish(this.producerMessage(renderedSubject, runContext.render((Map<String, Object>) object)));
+                connection.publish(this.producerMessage(runContext.render(this.subject), runContext.render((Map<String, Object>) object)));
                 return 1;
             }).reduce(Integer::sum)
             .blockingGet();

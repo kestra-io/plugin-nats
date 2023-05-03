@@ -5,10 +5,7 @@ import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
-import io.nats.client.Connection;
-import io.nats.client.JetStreamOptions;
-import io.nats.client.Message;
-import io.nats.client.PullSubscribeOptions;
+import io.nats.client.*;
 import io.nats.client.api.AckPolicy;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.DeliverPolicy;
@@ -22,11 +19,11 @@ import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.ZonedDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
 import static io.kestra.core.utils.Rethrow.throwFunction;
@@ -39,8 +36,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Schema(
     title = "Consume messages from a NATS subject on a JetStream-enabled NATS server",
     description = """
-        Please note that for it to work the server you run it against must have JetStream enabled.
-        It should also have a stream configured to match the given subject"""
+        Please note that the server you run it against must have JetStream enabled for it to work.
+        It should also have a stream configured to match the given subject."""
 )
 @Plugin(
     examples = {
@@ -64,51 +61,66 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
     @Builder.Default
     private Duration pollDuration = Duration.ofSeconds(2);
     @Builder.Default
-    private Integer maxRecords = 200;
+    private Integer batchSize = 10;
+    private Integer maxRecords;
     private Duration maxDuration;
     @Builder.Default
     private DeliverPolicy deliverPolicy = DeliverPolicy.All;
-    @Builder.Default
-    private Deserializer valueDeserializer = Deserializer.TO_STRING;
 
     public Output run(RunContext runContext) throws Exception {
         Connection connection = connect(runContext);
-        List<Message> fetchedMessages = connection.jetStream(JetStreamOptions.DEFAULT_JS_OPTIONS).subscribe(
-                runContext.render(subject),
-                PullSubscribeOptions.builder()
-                    .configuration(ConsumerConfiguration.builder()
-                        .ackPolicy(AckPolicy.Explicit)
-                        .deliverPolicy(deliverPolicy)
-                        .startTime(Optional.ofNullable(since).map(throwFunction(ignored -> ZonedDateTime.parse(runContext.render(since)))).orElse(null))
-                        .build())
-                    .durable(runContext.render(durableId)).build()
-            )
-            .fetch(Optional.ofNullable(maxRecords).orElse(Integer.MAX_VALUE), pollDuration);
+        JetStreamSubscription subscription = connection.jetStream(JetStreamOptions.DEFAULT_JS_OPTIONS).subscribe(
+            runContext.render(subject),
+            PullSubscribeOptions.builder()
+                .configuration(ConsumerConfiguration.builder()
+                    .ackPolicy(AckPolicy.Explicit)
+                    .deliverPolicy(deliverPolicy)
+                    .startTime(Optional.ofNullable(since).map(throwFunction(ignored -> ZonedDateTime.parse(runContext.render(since)))).orElse(null))
+                    .build())
+                .durable(runContext.render(durableId)).build()
+        );
 
+        Instant pollStart = Instant.now();
+        List<Message> messages;
+        AtomicInteger total = new AtomicInteger();
         File outputFile = runContext.tempFile(".ion").toFile();
         try (OutputStream output = new BufferedOutputStream(new FileOutputStream(outputFile))) {
-            fetchedMessages.forEach(throwConsumer(message -> {
-                Map<Object, Object> map = new HashMap<>();
+            AtomicReference<Integer> maxMessagesRemainingRef = new AtomicReference<>();
+            do {
+                Integer maxMessagesRemaining = Optional.ofNullable(maxRecords).map(ignored -> maxRecords - total.get()).orElse(null);
+                maxMessagesRemainingRef.set(maxMessagesRemaining);
 
-                map.put("subject", message.getSubject());
-                map.put("headers", Map.ofEntries(
-                    Optional.ofNullable(message.getHeaders())
-                        .map(headers -> headers.entrySet().toArray(Map.Entry[]::new))
-                        .orElse(new Map.Entry[0])
-                ));
-                map.put("data", valueDeserializer.apply(message.getData()));
-                map.put("timestamp", message.metaData().timestamp().toInstant());
+                batchSize = Optional.ofNullable(maxMessagesRemaining).map(ignored -> Math.min(batchSize, maxMessagesRemaining)).orElse(batchSize);
+                messages = subscription.fetch(batchSize, pollDuration);
 
-                FileSerde.write(output, map);
+                messages.forEach(throwConsumer(message -> {
+                    Map<Object, Object> map = new HashMap<>();
 
-                message.ack();
-            }));
+                    map.put("subject", message.getSubject());
+                    map.put("headers", Map.ofEntries(
+                        Optional.ofNullable(message.getHeaders())
+                            .map(headers -> headers.entrySet().toArray(Map.Entry[]::new))
+                            .orElse(new Map.Entry[0])
+                    ));
+                    map.put("data", Base64.getEncoder().encodeToString(message.getData()));
+                    map.put("timestamp", message.metaData().timestamp().toInstant());
+
+                    FileSerde.write(output, map);
+
+                    message.ack();
+                    total.incrementAndGet();
+                }));
+            } while (
+                Optional.ofNullable(maxMessagesRemainingRef.get()).map(maxMessagesRemaining -> maxMessagesRemaining > 0).orElse(true) &&
+                    messages.size() > 0 &&
+                    Optional.ofNullable(maxDuration).map(ignored -> Instant.now().isBefore(pollStart.plus(maxDuration))).orElse(true)
+            );
+        } finally {
+            connection.close();
         }
 
-        connection.close();
-
         return Output.builder()
-            .messagesCount(fetchedMessages.size())
+            .messagesCount(total.get())
             .uri(runContext.putTempFile(outputFile))
             .build();
     }

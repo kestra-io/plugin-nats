@@ -57,12 +57,11 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Builder.Default
     private Duration pollDuration = Duration.ofSeconds(2);
     @Builder.Default
-    private Integer maxRecords = 200;
+    private Integer batchSize = 10;
+    private Integer maxRecords;
     private Duration maxDuration;
     @Builder.Default
     private DeliverPolicy deliverPolicy = DeliverPolicy.All;
-    @Builder.Default
-    private Deserializer valueDeserializer = Deserializer.TO_STRING;
     @Builder.Default
     private final Duration interval = Duration.ofSeconds(60);
 
@@ -81,10 +80,10 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .durableId(durableId)
             .since(since)
             .pollDuration(pollDuration)
+            .batchSize(batchSize)
             .maxRecords(maxRecords)
             .maxDuration(maxDuration)
             .deliverPolicy(deliverPolicy)
-            .valueDeserializer(valueDeserializer)
             .build();
         Consume.Output run = task.run(runContext);
 

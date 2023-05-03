@@ -13,7 +13,7 @@
 
 ## Documentation
 * The official Kestra documentation can be found under: [kestra.io](https://kestra.io)
-* This plugin documentation can be found [here](https://kestra.io/plugins/plugin-couchbase/)
+* This plugin documentation can be found [here](https://kestra.io/plugins/plugin-nats/)
 
 ## License
 Apache 2.0 © [Kestra Technologies](https://kestra.io)

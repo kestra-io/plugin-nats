@@ -75,7 +75,7 @@ class TriggerTest extends NatsTest {
             Matchers.allOf(
                 Matchers.hasEntry("subject", "kestra.trigger"),
                 Matchers.hasEntry(is("headers"), new HeaderMatcher(hasEntry(is(SOME_HEADER_KEY), contains(SOME_HEADER_VALUE)))),
-                Matchers.hasEntry("data", "Hello Kestra From Produce Task")
+                Matchers.hasEntry("data", base64Encoded("Hello Kestra From Produce Task"))
             )
         ));
     }

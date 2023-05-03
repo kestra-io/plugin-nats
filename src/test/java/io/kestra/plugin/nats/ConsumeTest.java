@@ -19,7 +19,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -49,6 +48,7 @@ class ConsumeTest extends NatsTest {
                     Instant.ofEpochMilli(messages.get(0).metaData().timestamp().toInstant().toEpochMilli())
                 );
                 countDownLatch.countDown();
+                connection.close();
             }
         ));
 
@@ -67,13 +67,13 @@ class ConsumeTest extends NatsTest {
             .durableId("consumeMessageFromSubject-" + UUID.randomUUID())
             .deliverPolicy(DeliverPolicy.LastPerSubject)
             .pollDuration(Duration.ofSeconds(1))
+            .batchSize(1)
             .build()
             .run(runContextFactory.of());
 
         List<Map<String, Object>> result = toMessages(output);
 
         countDownLatch.await();
-        connection.close();
 
         assertThat(output.getMessagesCount(), is(2));
         assertThat(result.size(), is(2));
@@ -81,43 +81,16 @@ class ConsumeTest extends NatsTest {
             Matchers.<Map<String, Object>>allOf(
                 Matchers.hasEntry("subject", "kestra.consumeMessageFromSubject.topic"),
                 Matchers.hasEntry(is("headers"), new HeaderMatcher(hasEntry(is(expectedHeaderKey), contains(expectedHeaderValue)))),
-                Matchers.hasEntry("data", "Hello Kestra"),
+                Matchers.hasEntry("data", base64Encoded("Hello Kestra")),
                 Matchers.hasEntry("timestamp", messageInstant.get())
             )
             ,
             Matchers.<Map<String, Object>>allOf(
                 Matchers.hasEntry("subject", "kestra.consumeMessageFromSubject.anotherTopic"),
                 Matchers.hasEntry(is("headers"), new HeaderMatcher(anEmptyMap())),
-                Matchers.hasEntry("data", "Hello Again")
+                Matchers.hasEntry("data", base64Encoded("Hello Again"))
             )
         ));
-    }
-
-    @Test
-    void consumeRawBytes() throws Exception {
-        try (Connection connection = Nats.connect(Options.builder().server("localhost:4222").userInfo("kestra", "k3stra").build())) {
-            connection.publish("kestra.consumeRawBytes.topic", "Some raw bytes".getBytes());
-        }
-
-        Consume.Output output = Consume.builder()
-            .url("localhost:4222")
-            .username("kestra")
-            .password("k3stra")
-            .subject("kestra.consumeRawBytes.topic")
-            .durableId("consumeRawBytes-" + UUID.randomUUID())
-            .deliverPolicy(DeliverPolicy.LastPerSubject)
-            .pollDuration(Duration.ofSeconds(1))
-            .valueDeserializer(Deserializer.BYTES)
-            .build()
-            .run(runContextFactory.of());
-
-        List<Map<String, Object>> result = toMessages(output);
-
-        assertThat(output.getMessagesCount(), is(1));
-        assertThat(result.size(), is(1));
-        byte[] data = (byte[]) result.get(0).get("data");
-        Assertions.assertNotEquals("Some raw bytes", data);
-        Assertions.assertEquals("Some raw bytes", new String(data));
     }
 
     @Test
@@ -139,6 +112,7 @@ class ConsumeTest extends NatsTest {
                     messages.get(1).metaData().timestamp()
                 );
                 countDownLatch.countDown();
+                connection.close();
             }
         ));
 
@@ -147,7 +121,6 @@ class ConsumeTest extends NatsTest {
         connection.publish("kestra.consumeSince.anotherTopic", "Second message".getBytes());
 
         countDownLatch.await();
-        connection.close();
 
         Consume.Output output = Consume.builder()
             .url("localhost:4222")
@@ -165,6 +138,6 @@ class ConsumeTest extends NatsTest {
 
         assertThat(output.getMessagesCount(), is(1));
         assertThat(result.size(), is(1));
-        Assertions.assertEquals("Second message", result.get(0).get("data"));
+        Assertions.assertEquals(base64Encoded("Second message"), result.get(0).get("data"));
     }
 }

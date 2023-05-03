@@ -12,6 +12,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
@@ -25,6 +26,10 @@ class NatsTest {
         List<Map<String, Object>> result = new ArrayList<>();
         FileSerde.reader(inputStream, r -> result.add((Map<String, Object>) r));
         return result;
+    }
+
+    protected String base64Encoded(String baseString) {
+        return new String(Base64.getEncoder().encode(baseString.getBytes()));
     }
 
     protected static class HeaderMatcher extends BaseMatcher<Object> {
