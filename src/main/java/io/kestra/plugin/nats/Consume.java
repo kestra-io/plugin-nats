@@ -75,7 +75,7 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
                 .configuration(ConsumerConfiguration.builder()
                     .ackPolicy(AckPolicy.Explicit)
                     .deliverPolicy(deliverPolicy)
-                    .startTime(Optional.ofNullable(since).map(throwFunction(ignored -> ZonedDateTime.parse(runContext.render(since)))).orElse(null))
+                    .startTime(Optional.ofNullable(since).map(throwFunction(sinceDate -> ZonedDateTime.parse(runContext.render(sinceDate)))).orElse(null))
                     .build())
                 .durable(runContext.render(durableId)).build()
         );
@@ -87,10 +87,10 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
         try (OutputStream output = new BufferedOutputStream(new FileOutputStream(outputFile))) {
             AtomicReference<Integer> maxMessagesRemainingRef = new AtomicReference<>();
             do {
-                Integer maxMessagesRemaining = Optional.ofNullable(maxRecords).map(ignored -> maxRecords - total.get()).orElse(null);
+                Integer maxMessagesRemaining = Optional.ofNullable(maxRecords).map(max -> max - total.get()).orElse(null);
                 maxMessagesRemainingRef.set(maxMessagesRemaining);
 
-                batchSize = Optional.ofNullable(maxMessagesRemaining).map(ignored -> Math.min(batchSize, maxMessagesRemaining)).orElse(batchSize);
+                batchSize = Optional.ofNullable(maxMessagesRemaining).map(max -> Math.min(batchSize, max)).orElse(batchSize);
                 messages = subscription.fetch(batchSize, pollDuration);
 
                 messages.forEach(throwConsumer(message -> {
@@ -111,9 +111,7 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
                     total.incrementAndGet();
                 }));
             } while (
-                Optional.ofNullable(maxMessagesRemainingRef.get()).map(maxMessagesRemaining -> maxMessagesRemaining > 0).orElse(true) &&
-                    messages.size() > 0 &&
-                    Optional.ofNullable(maxDuration).map(ignored -> Instant.now().isBefore(pollStart.plus(maxDuration))).orElse(true)
+                !isEnded(messages, maxMessagesRemainingRef.get(), pollStart)
             );
         } finally {
             connection.close();
@@ -123,6 +121,23 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
             .messagesCount(total.get())
             .uri(runContext.putTempFile(outputFile))
             .build();
+    }
+
+    @SuppressWarnings("RedundantIfStatement")
+    private boolean isEnded(List<Message> messages, Integer maxMessagesRemaining, Instant pollStart) {
+        if (messages.isEmpty()) {
+            return true;
+        }
+
+        if (Optional.ofNullable(maxMessagesRemaining).map(max -> max <= 0).orElse(false)) {
+            return true;
+        }
+
+        if (Optional.ofNullable(maxDuration).map(max -> Instant.now().isBefore(pollStart.plus(max))).orElse(false)) {
+            return true;
+        }
+
+        return false;
     }
 
     @Builder
