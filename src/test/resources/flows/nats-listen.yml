@@ -1,0 +1,17 @@
+id: nats-listen
+namespace: io.kestra.tests
+
+triggers:
+  - id: watch
+    type: io.kestra.plugin.nats.Trigger
+    url: localhost:4222
+    username: kestra
+    password: k3stra
+    subject: kestra.trigger
+    durableId: natsTrigger
+    deliverPolicy: Last
+
+tasks:
+  - id: end
+    type: io.kestra.core.tasks.debugs.Return
+    format: "{{task.id}} > {{taskrun.startDate}}"

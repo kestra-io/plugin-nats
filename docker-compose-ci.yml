@@ -1,0 +1,21 @@
+version: "3.6"
+
+services:
+  nats:
+    build: .
+    healthcheck:
+      test: /init-nats.sh
+    command:
+      - '--config'
+      - 'nats-server.conf'
+      - '--user'
+      - 'kestra'
+      - '--pass'
+      - 'k3stra'
+      - '-js'
+      - '-n'
+      - 'kestra-server'
+      - '-c'
+      - '/js.conf'
+    ports:
+      - "4222:4222"
