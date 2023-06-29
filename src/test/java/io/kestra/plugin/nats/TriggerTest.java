@@ -5,8 +5,9 @@ import io.kestra.core.queues.QueueFactoryInterface;
 import io.kestra.core.queues.QueueInterface;
 import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.runners.Worker;
+import io.kestra.core.schedulers.AbstractScheduler;
 import io.kestra.core.schedulers.DefaultScheduler;
-import io.kestra.core.schedulers.SchedulerExecutionStateInterface;
 import io.kestra.core.schedulers.SchedulerTriggerStateInterface;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.services.FlowListenersInterface;
@@ -36,8 +37,6 @@ class TriggerTest extends NatsTest {
     private ApplicationContext applicationContext;
     @Inject
     private FlowListenersInterface flowListenersService;
-    @Inject
-    private SchedulerExecutionStateInterface executionState;
     @Inject
     private SchedulerTriggerStateInterface triggerState;
     @Inject
@@ -85,7 +84,14 @@ class TriggerTest extends NatsTest {
         CountDownLatch queueCount = new CountDownLatch(1);
 
         // scheduler
-        try (var scheduler = new DefaultScheduler(this.applicationContext, this.flowListenersService, this.executionState, this.triggerState)) {
+        try (
+            AbstractScheduler scheduler = new DefaultScheduler(
+                this.applicationContext,
+                this.flowListenersService,
+                this.triggerState
+            );
+            Worker worker = new Worker(applicationContext, 8, null);
+        ) {
             AtomicReference<Execution> last = new AtomicReference<>();
 
             // wait for execution
@@ -96,6 +102,7 @@ class TriggerTest extends NatsTest {
                 assertThat(execution.getFlowId(), is("nats-listen"));
             });
 
+            worker.run();
             scheduler.run();
 
             localFlowRepositoryLoader.load(this.getClass().getClassLoader().getResource("flows/nats-listen.yml"));
