@@ -96,10 +96,10 @@ class TriggerTest extends NatsTest {
 
             // wait for execution
             executionQueue.receive(execution -> {
-                last.set(execution);
+                last.set(execution.getLeft());
 
                 queueCount.countDown();
-                assertThat(execution.getFlowId(), is("nats-listen"));
+                assertThat(execution.getLeft().getFlowId(), is("nats-listen"));
             });
 
             worker.run();
