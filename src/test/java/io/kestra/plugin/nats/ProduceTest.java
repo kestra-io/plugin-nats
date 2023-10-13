@@ -141,7 +141,7 @@ class ProduceTest extends NatsTest {
         try (OutputStream outputStream = new FileOutputStream(tempFile)) {
             messages.forEach(throwConsumer(message -> FileSerde.write(outputStream, message)));
         }
-        URI uri = storageInterface.put(URI.create("/" + IdUtils.create() + ".ion"), new FileInputStream(tempFile));
+        URI uri = storageInterface.put(null, URI.create("/" + IdUtils.create() + ".ion"), new FileInputStream(tempFile));
 
         Produce.Output produceOutput = Produce.builder()
             .url("localhost:4222")

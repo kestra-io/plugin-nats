@@ -22,7 +22,7 @@ class NatsTest {
     protected StorageInterface storageInterface;
 
     protected List<Map<String, Object>> toMessages(Consume.Output output) throws IOException {
-        BufferedReader inputStream = new BufferedReader(new InputStreamReader(storageInterface.get(output.getUri())));
+        BufferedReader inputStream = new BufferedReader(new InputStreamReader(storageInterface.get(null, output.getUri())));
         List<Map<String, Object>> result = new ArrayList<>();
         FileSerde.reader(inputStream, r -> result.add((Map<String, Object>) r));
         return result;
