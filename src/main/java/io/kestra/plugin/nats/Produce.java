@@ -1,5 +1,6 @@
 package io.kestra.plugin.nats;
 
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -10,14 +11,15 @@ import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.NatsMessage;
-import io.reactivex.BackpressureStrategy;
-import io.reactivex.Flowable;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URI;
@@ -25,6 +27,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+
+import static io.kestra.core.utils.Rethrow.throwFunction;
 
 @SuperBuilder
 @ToString
@@ -106,10 +110,10 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
                 }
 
                 try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.uriToInputStream(from)))) {
-                    messagesCount = publish(runContext, connection, Flowable.create(FileSerde.reader(inputStream), BackpressureStrategy.BUFFER));
+                    messagesCount = publish(runContext, connection, Flux.create(FileSerde.reader(inputStream), FluxSink.OverflowStrategy.BUFFER));
                 }
             } else {
-                messagesCount = publish(runContext, connection, Flowable.fromArray(((List<?>) this.from).toArray()));
+                messagesCount = publish(runContext, connection, Flux.fromIterable(((List<?>) this.from)));
             }
 
         } else {
@@ -125,12 +129,12 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
             .build();
     }
 
-    private Integer publish(RunContext runContext, Connection connection, Flowable<Object> messagesFlowable) {
-        return messagesFlowable.map(object -> {
+    private Integer publish(RunContext runContext, Connection connection, Flux<Object> messagesFlowable) throws IllegalVariableEvaluationException {
+        return messagesFlowable.map(throwFunction(object -> {
                 connection.publish(this.producerMessage(runContext.render(this.subject), runContext.render((Map<String, Object>) object)));
                 return 1;
-            }).reduce(Integer::sum)
-            .blockingGet();
+            })).reduce(Integer::sum)
+            .block();
     }
 
     private Message producerMessage(String subject, Map<String, Object> message) {
