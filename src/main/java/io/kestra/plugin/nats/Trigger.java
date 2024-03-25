@@ -26,12 +26,13 @@ import java.util.Optional;
 @Plugin(
     examples = {
         @Example(
-            title = "Subscribe to a NATS subject, getting every message from the beginning of the subject on first trigger execution",
+            title = "Subscribe to a NATS subject, getting every message from the beginning of the subject on first trigger execution.",
+            full = true,
             code = {
                 "triggers:",
                 "  - id: watch",
                 "    type: io.kestra.plugin.nats.Trigger",
-                "    url: localhost:4222",
+                "    url: nats://localhost:4222",
                 "    username: kestra",
                 "    password: k3stra",
                 "    subject: kestra.trigger",

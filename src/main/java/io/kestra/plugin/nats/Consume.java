@@ -34,7 +34,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Consume messages from a NATS subject on a JetStream-enabled NATS server",
+    title = "Consume messages from a NATS subject on a JetStream-enabled NATS server.",
     description = """
         Please note that the server you run it against must have JetStream enabled for it to work.
         It should also have a stream configured to match the given subject."""
@@ -42,7 +42,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Plugin(
     examples = {
         @Example(
-            title = "Consume messages from any topic subject matching the kestra.> wildcard, using user password authentication",
+            title = "Consume messages from any topic subject matching the kestra.> wildcard, using user password authentication.",
             code = {
                 "url: nats://localhost:4222",
                 "username: nats_user",
@@ -144,12 +144,12 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
-            title = "Number of messages consumed"
+            title = "Number of messages consumed."
         )
         private final Integer messagesCount;
 
         @Schema(
-            title = "URI of a Kestra internal storage file"
+            title = "URI of a Kestra internal storage file."
         )
         private URI uri;
     }
