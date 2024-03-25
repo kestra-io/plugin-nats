@@ -36,12 +36,12 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Produce messages to a NATS subject on a NATS server"
+    title = "Produce messages to a NATS subject on a NATS server."
 )
 @Plugin(
     examples = {
         @Example(
-            title = "Produce a single message to kestra.publish subject, using user password authentication",
+            title = "Produce a single message to kestra.publish subject, using user password authentication.",
             code = {
                 "url: nats://localhost:4222",
                 "username: nats_user",
@@ -54,7 +54,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             }
         ),
         @Example(
-            title = "Produce 2 messages to kestra.publish subject, using user password authentication",
+            title = "Produce 2 messages to kestra.publish subject, using user password authentication.",
             code = {
                 "url: nats://localhost:4222",
                 "username: nats_user",
@@ -68,7 +68,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             }
         ),
         @Example(
-            title = "Produce messages (1 / row) from an internal storage file to kestra.publish subject, using user password authentication",
+            title = "Produce messages (1 / row) from an internal storage file to kestra.publish subject, using user password authentication.",
             code = {
                 "url: nats://localhost:4222",
                 "username: nats_user",
