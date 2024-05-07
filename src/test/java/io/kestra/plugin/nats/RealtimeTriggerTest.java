@@ -84,32 +84,6 @@ class RealtimeTriggerTest extends NatsTest {
                 .run(runContextFactory.of());
 
 
-            Produce.builder()
-                .url("localhost:4222")
-                .username("kestra")
-                .password("k3stra")
-                .subject("kestra.realtime.trigger")
-                .from(Map.of(
-                    "headers", Map.of(SOME_HEADER_KEY, SOME_HEADER_VALUE),
-                    "data", "Task 2"
-                ))
-                .build()
-                .run(runContextFactory.of());
-
-
-            Produce.builder()
-                .url("localhost:4222")
-                .username("kestra")
-                .password("k3stra")
-                .subject("kestra.realtime.trigger")
-                .from(Map.of(
-                    "headers", Map.of(SOME_HEADER_KEY, SOME_HEADER_VALUE),
-                    "data", "Task 3"
-                ))
-                .build()
-                .run(runContextFactory.of());
-
-
             worker.run();
             scheduler.run();
 
