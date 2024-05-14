@@ -142,56 +142,42 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
                             .configuration(ConsumerConfiguration.builder()
                                 .ackPolicy(AckPolicy.Explicit)
                                 .deliverPolicy(deliverPolicy)
-                                .startTime(Optional.ofNullable(since).map(throwFunction(sinceDate -> ZonedDateTime.parse(runContext.render(sinceDate)))).orElse(null))
+                                .startTime(
+                                    Optional.ofNullable(since)
+                                        .map(
+                                            throwFunction(sinceDate -> ZonedDateTime.parse(runContext.render(sinceDate)))
+                                        )
+                                        .orElse(null)
+                                )
                                 .build())
                             .durable(runContext.render(durableId)).build()
                     );
 
-                    sink.onDispose(() -> {
-                        try {
-                            connection.close();
-                        } catch (Throwable e) {
-                            sink.error(e);
-                        }
-                    });
+                    while(true) {
+                        subscription.fetch(this.batchSize, pollDuration)
+                            .forEach(message -> {
+                                Map<String, List<String>> headerMap;
+                                if (message.getHeaders() == null) {
+                                    headerMap = Collections.emptyMap();
+                                } else {
+                                    headerMap = message.getHeaders()
+                                        .entrySet()
+                                        .stream()
+                                        .collect(
+                                            Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)
+                                        );
+                                }
 
-                    List<Message> messages;
+                                NatsMessageOutput natsMessage = NatsMessageOutput.builder()
+                                    .subject(message.getSubject())
+                                    .headers(headerMap)
+                                    .data(new String(message.getData()))
+                                    .timestamp(message.metaData().timestamp().toInstant())
+                                    .build();
 
-                    Instant pollStart = Instant.now();
-                    AtomicInteger total = new AtomicInteger();
-                    AtomicReference<Integer> maxMessagesRemainingRef = new AtomicReference<>();
-                    do {
-
-                        Integer maxMessagesRemaining = Optional.ofNullable(maxRecords).map(max -> max - total.get()).orElse(null);
-                        maxMessagesRemainingRef.set(maxMessagesRemaining);
-
-                        batchSize = Optional.ofNullable(maxMessagesRemaining).map(max -> Math.min(batchSize, max)).orElse(batchSize);
-
-                        messages = subscription.fetch(batchSize, pollDuration);
-                        messages.forEach(message -> {
-                            Map<String, List<String>> headerMap;
-                            if (message.getHeaders() == null) {
-                                headerMap = Collections.emptyMap();
-                            } else {
-                                headerMap = message.getHeaders()
-                                    .entrySet()
-                                    .stream()
-                                    .collect(
-                                        Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)
-                                    );
-                            }
-
-                            NatsMessageOutput natsMessage = NatsMessageOutput.builder()
-                                .subject(message.getSubject())
-                                .headers(headerMap)
-                                .data(new String(message.getData()))
-                                .timestamp(message.metaData().timestamp().toInstant())
-                                .build();
-
-                            sink.next(natsMessage);
-                            total.incrementAndGet();
-                        });
-                    } while (!isEnded(messages, total.get(), pollStart));
+                                sink.next(natsMessage);
+                            });
+                    }
                 } catch (Throwable throwable) {
                     sink.error(throwable);
                 } finally {

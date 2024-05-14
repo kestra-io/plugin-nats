@@ -23,6 +23,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -53,8 +54,8 @@ class RealtimeTriggerTest extends NatsTest {
         CountDownLatch queueCount = new CountDownLatch(1);
 
         // scheduler
-        Worker worker = new Worker(applicationContext, 8, null);
         try (
+            Worker worker = applicationContext.createBean(Worker.class, UUID.randomUUID().toString(), 8, null);
             AbstractScheduler scheduler = new DefaultScheduler(
                 this.applicationContext,
                 this.flowListenersService,
@@ -71,6 +72,11 @@ class RealtimeTriggerTest extends NatsTest {
                 assertThat(execution.getLeft().getFlowId(), is("nats-realtime"));
             });
 
+            worker.run();
+            scheduler.run();
+
+            localFlowRepositoryLoader.load(this.getClass().getClassLoader().getResource("flows/nats-realtime.yml"));
+
             Produce.builder()
                 .url("localhost:4222")
                 .username("kestra")
@@ -82,12 +88,6 @@ class RealtimeTriggerTest extends NatsTest {
                 ))
                 .build()
                 .run(runContextFactory.of());
-
-
-            worker.run();
-            scheduler.run();
-
-            localFlowRepositoryLoader.load(this.getClass().getClassLoader().getResource("flows/nats-realtime.yml"));
 
             queueCount.await(1, TimeUnit.MINUTES);
 
