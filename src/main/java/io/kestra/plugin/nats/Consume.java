@@ -119,7 +119,7 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
 
         return Output.builder()
             .messagesCount(total.get())
-            .uri(runContext.putTempFile(outputFile))
+            .uri(runContext.storage().putFile(outputFile))
             .build();
     }
 

@@ -109,7 +109,7 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
                     throw new Exception("Invalid from parameter, must be a Kestra internal storage URI");
                 }
 
-                try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.uriToInputStream(from)))) {
+                try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.storage().getFile(from)))) {
                     messagesCount = publish(runContext, connection, Flux.create(FileSerde.reader(inputStream), FluxSink.OverflowStrategy.BUFFER));
                 }
             } else {
