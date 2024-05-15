@@ -178,13 +178,12 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
                                 sink.next(natsMessage);
                             });
                     }
-                } catch (Throwable throwable) {
+                } catch (Exception throwable) {
                     sink.error(throwable);
                 } finally {
                     sink.complete();
                 }
-            }, FluxSink.OverflowStrategy.IGNORE)
-            .subscribeOn(Schedulers.boundedElastic());
+            });
     }
 
     @SuppressWarnings("RedundantIfStatement")

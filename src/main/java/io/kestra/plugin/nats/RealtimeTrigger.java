@@ -5,7 +5,6 @@ import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.triggers.*;
-import io.kestra.core.runners.RunContext;
 import io.nats.client.api.DeliverPolicy;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
@@ -40,7 +39,8 @@ import java.time.Duration;
                 "    deliverPolicy: All"
             }
         )
-    }
+    },
+    beta = true
 )
 public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerInterface, TriggerOutput<Consume.Output>, NatsConnectionInterface, ConsumeInterface {
     private String url;
@@ -79,7 +79,6 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
             .build();
 
         return Flux.from(task.stream(conditionContext.getRunContext()))
-            .map(record -> TriggerService.generateRealtimeExecution(this, context, record))
-            .next();
+            .map(record -> TriggerService.generateRealtimeExecution(this, context, record));
     }
 }
