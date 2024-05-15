@@ -12,11 +12,12 @@ import io.nats.client.api.DeliverPolicy;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import org.reactivestreams.Publisher;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
+import reactor.core.scheduler.Schedulers;
 
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
@@ -24,6 +25,7 @@ import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
 import static io.kestra.core.utils.Rethrow.throwFunction;
@@ -55,15 +57,23 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     }
 )
 public class Consume extends NatsConnection implements RunnableTask<Consume.Output>, ConsumeInterface {
+
     private String subject;
+
     private String durableId;
+
     private String since;
+
     @Builder.Default
     private Duration pollDuration = Duration.ofSeconds(2);
+
     @Builder.Default
     private Integer batchSize = 10;
+
     private Integer maxRecords;
+
     private Duration maxDuration;
+
     @Builder.Default
     private DeliverPolicy deliverPolicy = DeliverPolicy.All;
 
@@ -123,6 +133,60 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
             .build();
     }
 
+    public Publisher<NatsMessageOutput> stream(RunContext runContext) throws Exception {
+        return Flux.<NatsMessageOutput>create(sink -> {
+                try (Connection connection = connect(runContext)) {
+                    JetStreamSubscription subscription = connection.jetStream(JetStreamOptions.DEFAULT_JS_OPTIONS).subscribe(
+                        runContext.render(subject),
+                        PullSubscribeOptions.builder()
+                            .configuration(ConsumerConfiguration.builder()
+                                .ackPolicy(AckPolicy.Explicit)
+                                .deliverPolicy(deliverPolicy)
+                                .startTime(
+                                    Optional.ofNullable(since)
+                                        .map(
+                                            throwFunction(sinceDate -> ZonedDateTime.parse(runContext.render(sinceDate)))
+                                        )
+                                        .orElse(null)
+                                )
+                                .build())
+                            .durable(runContext.render(durableId)).build()
+                    );
+
+                    while(true) {
+                        subscription.fetch(this.batchSize, pollDuration)
+                            .forEach(message -> {
+                                Map<String, List<String>> headerMap;
+                                if (message.getHeaders() == null) {
+                                    headerMap = Collections.emptyMap();
+                                } else {
+                                    headerMap = message.getHeaders()
+                                        .entrySet()
+                                        .stream()
+                                        .collect(
+                                            Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)
+                                        );
+                                }
+
+                                NatsMessageOutput natsMessage = NatsMessageOutput.builder()
+                                    .subject(message.getSubject())
+                                    .headers(headerMap)
+                                    .data(new String(message.getData()))
+                                    .timestamp(message.metaData().timestamp().toInstant())
+                                    .build();
+
+                                sink.next(natsMessage);
+                            });
+                    }
+                } catch (Throwable throwable) {
+                    sink.error(throwable);
+                } finally {
+                    sink.complete();
+                }
+            }, FluxSink.OverflowStrategy.IGNORE)
+            .subscribeOn(Schedulers.boundedElastic());
+    }
+
     @SuppressWarnings("RedundantIfStatement")
     private boolean isEnded(List<Message> messages, Integer maxMessagesRemaining, Instant pollStart) {
         if (messages.isEmpty()) {
@@ -143,6 +207,7 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
+
         @Schema(
             title = "Number of messages consumed."
         )
@@ -152,5 +217,22 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
             title = "URI of a Kestra internal storage file."
         )
         private URI uri;
+
     }
+
+
+    @Getter
+    @Builder
+    public static class NatsMessageOutput implements io.kestra.core.models.tasks.Output {
+
+        private String subject;
+
+        private Map<String, List<String>> headers;
+
+        private String data;
+
+        private Instant timestamp;
+
+    }
+
 }
