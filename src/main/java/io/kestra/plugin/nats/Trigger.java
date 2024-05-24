@@ -21,7 +21,7 @@ import java.util.Optional;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Consume messages from a NATS subject on a JetStream-enabled NATS server to trigger execution on results."
+    title = "Consume messages periodically from a NATS subject on a JetStream-enabled NATS server and create one execution per batch."
 )
 @Plugin(
     examples = {

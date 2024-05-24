@@ -47,7 +47,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "React to and consume messages from a NATS subject on a JetStream-enabled NATS server to trigger execution on results."
+    title = "Consume a message in real-time from a NATS subject on a JetStream-enabled NATS server and create one execution per message."
 )
 @Plugin(
     examples = {
