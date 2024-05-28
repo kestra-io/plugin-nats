@@ -66,8 +66,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                 "    deliverPolicy: All"
             }
         )
-    },
-    beta = true
+    }
 )
 public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerInterface, TriggerOutput<Consume.Output>, NatsConnectionInterface, SubscribeInterface {
     private String url;
