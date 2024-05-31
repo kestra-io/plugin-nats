@@ -21,7 +21,8 @@ import java.util.Optional;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Consume messages periodically from a NATS subject on a JetStream-enabled NATS server and create one execution per batch."
+    title = "Consume messages periodically from a NATS subject on a JetStream-enabled NATS server and create one execution per batch.",
+    description = "If you would like to consume each message from a NATS subject in real-time and create one execution per message, you can use the [io.kestra.plugin.nats.RealtimeTrigger](https://kestra.io/plugins/plugin-nats/triggers/io.kestra.plugin.nats.realtimetrigger) instead."
 )
 @Plugin(
     examples = {
@@ -37,7 +38,8 @@ import java.util.Optional;
                 "    password: k3stra",
                 "    subject: kestra.trigger",
                 "    durableId: natsTrigger",
-                "    deliverPolicy: All"
+                "    deliverPolicy: All",
+                "    maxRecords: 1"
             }
         )
     }
