@@ -68,7 +68,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         )
     }
 )
-public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerInterface, TriggerOutput<Consume.Output>, NatsConnectionInterface, SubscribeInterface {
+public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerInterface, TriggerOutput<Consume.NatsMessageOutput>, NatsConnectionInterface, SubscribeInterface {
     private String url;
     private String username;
     private String password;
