@@ -7,7 +7,6 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
-import java.time.Duration;
 
 /**
  * Base interface to subscribe and consume a subject.
@@ -38,14 +37,6 @@ public interface SubscribeInterface {
     )
     @PluginProperty(dynamic = true)
     String getSince();
-
-    @Schema(
-        title = "Polling duration before processing message",
-        description = "If no messages are available, define the max duration to wait for new messages"
-    )
-    @PluginProperty
-    @NotNull
-    Duration getPollDuration();
 
     @Schema(
         title = "Messages are fetched by batch of given size"

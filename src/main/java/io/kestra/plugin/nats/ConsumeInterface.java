@@ -24,4 +24,11 @@ public interface ConsumeInterface {
     @PluginProperty
     Duration getMaxDuration();
 
+    @Schema(
+        title = "Polling duration before processing message",
+        description = "If no messages are available, define the max duration to wait for new messages"
+    )
+    @PluginProperty
+    @NotNull
+    Duration getPollDuration();
 }

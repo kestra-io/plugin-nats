@@ -55,15 +55,24 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             title = "Subscribe to a NATS subject, getting every message from the beginning of the subject on first trigger execution.",
             full = true,
             code = {
-                "triggers:",
-                "  - id: watch",
-                "    type: io.kestra.plugin.nats.RealtimeTrigger",
-                "    url: nats://localhost:4222",
-                "    username: kestra",
-                "    password: k3stra",
-                "    subject: kestra.trigger",
-                "    durableId: natsTrigger",
-                "    deliverPolicy: All"
+                """
+                id: nats
+                namespace: dev
+
+                tasks:
+                - id: log
+                  type: io.kestra.plugin.core.log.Log
+                  message: "{{ trigger.data }}"
+                triggers:
+                  - id: watch
+                    type: io.kestra.plugin.nats.RealtimeTrigger
+                    url: nats://localhost:4222
+                    username: kestra
+                    password: k3stra
+                    subject: kestra.trigger
+                    durableId: natsTrigger
+                    deliverPolicy: All
+                    """
             }
         )
     }
@@ -75,8 +84,6 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     private String subject;
     private String durableId;
     private String since;
-    @Builder.Default
-    private Duration pollDuration = Duration.ofSeconds(2);
 
     @Builder.Default
     private Integer batchSize = 10;
@@ -103,7 +110,6 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
             .subject(subject)
             .durableId(durableId)
             .since(since)
-            .pollDuration(pollDuration)
             .batchSize(batchSize)
             .deliverPolicy(deliverPolicy)
             .build();
@@ -141,14 +147,14 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
 
                 // fetch
                 while (isActive.get()) {
-                    List<Message> messages = subscription.fetch(batchSize, pollDuration);
+                    List<Message> messages = subscription.fetch(batchSize, Duration.ofMillis(100));
 
                     messages.forEach(message -> {
-                        Map<String, List<String>> headerMap;
+                        Map<String, List<String>> headers;
                         if (message.getHeaders() == null) {
-                            headerMap = Collections.emptyMap();
+                            headers = Collections.emptyMap();
                         } else {
-                            headerMap = message.getHeaders()
+                            headers = message.getHeaders()
                                 .entrySet()
                                 .stream()
                                 .collect(
@@ -156,14 +162,15 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
                                 );
                         }
 
-                        Consume.NatsMessageOutput natsMessage = Consume.NatsMessageOutput.builder()
+                        Consume.NatsMessageOutput output = Consume.NatsMessageOutput.builder()
                             .subject(message.getSubject())
-                            .headers(headerMap)
+                            .headers(headers)
                             .data(new String(message.getData()))
                             .timestamp(message.metaData().timestamp().toInstant())
                             .build();
 
-                        emitter.next(natsMessage);
+                        emitter.next(output);
+                        message.ack(); // AckPolicy.Explicit
                     });
                     // The JetStreamSubscription#fetch method catches any thrown InterruptedException.
                     // Let's check if the thread was interrupted, and if we need to stop.
@@ -171,10 +178,10 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
                         isActive.set(false);
                     }
                 }
+                emitter.complete();
             } catch (Exception throwable) {
                 emitter.error(throwable);
             } finally {
-                emitter.complete();
                 waitForTermination.countDown();
             }
         });
