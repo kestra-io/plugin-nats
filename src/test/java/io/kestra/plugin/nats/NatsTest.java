@@ -2,7 +2,7 @@ package io.kestra.plugin.nats;
 
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.storages.StorageInterface;
-import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
+import io.kestra.core.junit.annotations.KestraTest;
 import jakarta.inject.Inject;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -16,7 +16,7 @@ import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
-@MicronautTest
+@KestraTest
 class NatsTest {
     @Inject
     protected StorageInterface storageInterface;
