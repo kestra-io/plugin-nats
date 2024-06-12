@@ -7,8 +7,7 @@ import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.runners.Worker;
 import io.kestra.core.schedulers.AbstractScheduler;
-import io.kestra.core.schedulers.DefaultScheduler;
-import io.kestra.core.schedulers.SchedulerTriggerStateInterface;
+import io.kestra.jdbc.runner.JdbcScheduler;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.services.FlowListenersInterface;
 import io.micronaut.context.ApplicationContext;
@@ -37,8 +36,6 @@ class TriggerTest extends NatsTest {
     private ApplicationContext applicationContext;
     @Inject
     private FlowListenersInterface flowListenersService;
-    @Inject
-    private SchedulerTriggerStateInterface triggerState;
     @Inject
     @Named(QueueFactoryInterface.EXECUTION_NAMED)
     private QueueInterface<Execution> executionQueue;
@@ -86,10 +83,9 @@ class TriggerTest extends NatsTest {
         // scheduler
         Worker worker = new Worker(applicationContext, 8, null);
         try (
-            AbstractScheduler scheduler = new DefaultScheduler(
+            AbstractScheduler scheduler = new JdbcScheduler(
                 this.applicationContext,
-                this.flowListenersService,
-                this.triggerState
+                this.flowListenersService
             );
         ) {
             AtomicReference<Execution> last = new AtomicReference<>();

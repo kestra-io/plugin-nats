@@ -7,21 +7,13 @@ import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.runners.Worker;
 import io.kestra.core.schedulers.AbstractScheduler;
-import io.kestra.core.schedulers.DefaultScheduler;
-import io.kestra.core.schedulers.SchedulerTriggerStateInterface;
-import io.kestra.core.serializers.FileSerde;
+import io.kestra.jdbc.runner.JdbcScheduler;
 import io.kestra.core.services.FlowListenersInterface;
 import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
-import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -39,8 +31,6 @@ class RealtimeTriggerTest extends NatsTest {
     @Inject
     private FlowListenersInterface flowListenersService;
     @Inject
-    private SchedulerTriggerStateInterface triggerState;
-    @Inject
     @Named(QueueFactoryInterface.EXECUTION_NAMED)
     private QueueInterface<Execution> executionQueue;
     @Inject
@@ -56,16 +46,15 @@ class RealtimeTriggerTest extends NatsTest {
         // scheduler
         try (
             Worker worker = applicationContext.createBean(Worker.class, UUID.randomUUID().toString(), 8, null);
-            AbstractScheduler scheduler = new DefaultScheduler(
+            AbstractScheduler scheduler = new JdbcScheduler(
                 this.applicationContext,
-                this.flowListenersService,
-                this.triggerState
+                this.flowListenersService
             );
         ) {
             AtomicReference<Execution> last = new AtomicReference<>();
 
             // wait for execution
-            executionQueue.receive(RealtimeTriggerTest.class, execution -> {
+            executionQueue.receive(execution -> {
                 last.set(execution.getLeft());
 
                 queueCount.countDown();
