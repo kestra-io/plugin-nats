@@ -7,18 +7,19 @@ import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.runners.Worker;
 import io.kestra.core.schedulers.AbstractScheduler;
+import io.kestra.core.utils.TestsUtils;
 import io.kestra.jdbc.runner.JdbcScheduler;
 import io.kestra.core.services.FlowListenersInterface;
 import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import org.junit.jupiter.api.Test;
+import reactor.core.publisher.Flux;
 
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static io.kestra.plugin.nats.ProduceTest.SOME_HEADER_KEY;
 import static io.kestra.plugin.nats.ProduceTest.SOME_HEADER_VALUE;
@@ -51,12 +52,8 @@ class RealtimeTriggerTest extends NatsTest {
                 this.flowListenersService
             );
         ) {
-            AtomicReference<Execution> last = new AtomicReference<>();
-
             // wait for execution
-            executionQueue.receive(execution -> {
-                last.set(execution.getLeft());
-
+            Flux<Execution> receive = TestsUtils.receive(executionQueue, execution -> {
                 queueCount.countDown();
                 assertThat(execution.getLeft().getFlowId(), is("nats-realtime"));
             });
@@ -78,11 +75,10 @@ class RealtimeTriggerTest extends NatsTest {
                 .build()
                 .run(runContextFactory.of());
 
-            queueCount.await(1, TimeUnit.MINUTES);
+            boolean await = queueCount.await(1, TimeUnit.MINUTES);
+            assertThat(await, is(true));
 
-            Execution execution = last.get();
-
-            Map<String, Object> result = execution.getTrigger().getVariables();
+            Map<String, Object> result = receive.blockLast().getTrigger().getVariables();
             assertThat(result.size(), is(4)); // expect 4 variables
             assertThat(result.get("subject"), is("kestra.realtime.trigger"));
             assertThat(result.get("headers"), is(new HeaderMatcher(hasEntry(is(SOME_HEADER_KEY), contains(SOME_HEADER_VALUE)))));
