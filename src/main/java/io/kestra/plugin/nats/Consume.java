@@ -93,7 +93,7 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
         Instant pollStart = Instant.now();
         List<Message> messages;
         AtomicInteger total = new AtomicInteger();
-        File outputFile = runContext.tempFile(".ion").toFile();
+        File outputFile = runContext.workingDir().createTempFile(".ion").toFile();
         try (OutputStream output = new BufferedOutputStream(new FileOutputStream(outputFile))) {
             AtomicReference<Integer> maxMessagesRemainingRef = new AtomicReference<>();
             do {

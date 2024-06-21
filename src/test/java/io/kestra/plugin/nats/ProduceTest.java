@@ -137,7 +137,7 @@ class ProduceTest extends NatsTest {
 
         RunContext runContext = runContextFactory.of();
 
-        File tempFile = runContext.tempFile(".ion").toFile();
+        File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
         try (OutputStream outputStream = new FileOutputStream(tempFile)) {
             messages.forEach(throwConsumer(message -> FileSerde.write(outputStream, message)));
         }
