@@ -58,12 +58,12 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             code = {
                 """
                 id: nats
-                namespace: dev
+                namespace: company.team
 
                 tasks:
-                - id: log
-                  type: io.kestra.plugin.core.log.Log
-                  message: "{{ trigger.data }}"
+                  - id: log
+                    type: io.kestra.plugin.core.log.Log
+                    message: "{{ trigger.data }}"
                 triggers:
                   - id: watch
                     type: io.kestra.plugin.nats.RealtimeTrigger
