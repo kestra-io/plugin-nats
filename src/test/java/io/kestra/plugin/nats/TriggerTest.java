@@ -7,6 +7,7 @@ import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.runners.Worker;
 import io.kestra.core.schedulers.AbstractScheduler;
+import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.jdbc.runner.JdbcScheduler;
 import io.kestra.core.serializers.FileSerde;
@@ -24,6 +25,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -82,28 +84,29 @@ class TriggerTest extends NatsTest {
         CountDownLatch queueCount = new CountDownLatch(1);
 
         // scheduler
-        Worker worker = new Worker(applicationContext, 8, null);
-        try (
-            AbstractScheduler scheduler = new JdbcScheduler(
-                this.applicationContext,
-                this.flowListenersService
-            );
-        ) {
-            // wait for execution
-            Flux<Execution> receive = TestsUtils.receive(executionQueue, execution -> {
-                queueCount.countDown();
-                assertThat(execution.getLeft().getFlowId(), is("nats-listen"));
-            });
+        try (Worker worker = applicationContext.createBean(Worker.class, IdUtils.create(), 8, null)) {
+            try (
+                AbstractScheduler scheduler = new JdbcScheduler(
+                    this.applicationContext,
+                    this.flowListenersService
+                );
+            ) {
+                // wait for execution
+                Flux<Execution> receive = TestsUtils.receive(executionQueue, execution -> {
+                    queueCount.countDown();
+                    assertThat(execution.getLeft().getFlowId(), is("nats-listen"));
+                });
 
-            worker.run();
-            scheduler.run();
+                worker.run();
+                scheduler.run();
 
-            localFlowRepositoryLoader.load(this.getClass().getClassLoader().getResource("flows/nats-listen.yml"));
+                localFlowRepositoryLoader.load(Objects.requireNonNull(this.getClass().getClassLoader().getResource("flows/nats-listen.yml")));
 
-            boolean await = queueCount.await(1, TimeUnit.MINUTES);
-            assertThat(await, is(true));
+                boolean await = queueCount.await(1, TimeUnit.MINUTES);
+                assertThat(await, is(true));
 
-            return receive.blockLast();
+                return receive.blockLast();
+            }
         }
     }
 }
