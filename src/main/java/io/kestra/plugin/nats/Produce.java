@@ -18,7 +18,6 @@ import lombok.experimental.SuperBuilder;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -110,7 +109,7 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
                 }
 
                 try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.storage().getFile(from)))) {
-                    messagesCount = publish(runContext, connection, Flux.create(FileSerde.reader(inputStream), FluxSink.OverflowStrategy.BUFFER));
+                    messagesCount = publish(runContext, connection, FileSerde.readAll(inputStream));
                 }
             } else {
                 messagesCount = publish(runContext, connection, Flux.fromIterable(((List<?>) this.from)));
