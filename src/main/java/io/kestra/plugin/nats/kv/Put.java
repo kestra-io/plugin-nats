@@ -38,7 +38,7 @@ import java.util.Map;
 	            "values:",
                 "  - key1: value1",
                 "  - key2: value2",
-                "  - key2:",
+                "  - key3:",
                 "    - subKey1: some other value"
             }
         ),
