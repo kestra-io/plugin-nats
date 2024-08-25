@@ -30,16 +30,26 @@ import java.util.Optional;
             title = "Subscribe to a NATS subject, getting every message from the beginning of the subject on first trigger execution.",
             full = true,
             code = {
-                "triggers:",
-                "  - id: watch",
-                "    type: io.kestra.plugin.nats.Trigger",
-                "    url: nats://localhost:4222",
-                "    username: kestra",
-                "    password: k3stra",
-                "    subject: kestra.trigger",
-                "    durableId: natsTrigger",
-                "    deliverPolicy: All",
-                "    maxRecords: 1"
+                """
+                id: nats
+                namespace: company.team
+
+                tasks:
+                  - id: log
+                    type: io.kestra.plugin.core.log.Log
+                    message: "{{ trigger.data }}"
+                
+                triggers:
+                  - id: watch
+                    type: io.kestra.plugin.nats.Trigger
+                    url: nats://localhost:4222
+                    username: nats_user
+                    password: nats_password
+                    subject: kestra.trigger
+                    durableId: natsTrigger
+                    deliverPolicy: All
+                    maxRecords: 1
+                """
             }
         )
     }

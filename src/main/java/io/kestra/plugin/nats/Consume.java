@@ -45,14 +45,21 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     examples = {
         @Example(
             title = "Consume messages from any topic subject matching the kestra.> wildcard, using user password authentication.",
-            code = {
-                "url: nats://localhost:4222",
-                "username: nats_user",
-                "password: nats_passwd",
-                "subject: kestra.>",
-                "durableId: someDurableId",
-                "pollDuration: PT5S"
-            }
+            full = true,
+            code = """
+                id: nats_consume_messages
+                namespace: company.team
+                
+                tasks:
+                  - id: consume
+                    type: io.kestra.plugin.nats.Consume
+                    url: nats://localhost:4222
+                    username: nats_user
+                    password: nats_password
+                    subject: kestra.>
+                    durableId: someDurableId
+                    pollDuration: PT5S
+                """
         ),
     }
 )
