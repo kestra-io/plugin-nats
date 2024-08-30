@@ -41,40 +41,61 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     examples = {
         @Example(
             title = "Produce a single message to kestra.publish subject, using user password authentication.",
-            code = {
-                "url: nats://localhost:4222",
-                "username: nats_user",
-                "password: nats_passwd",
-                "subject: kestra.publish",
-                "from:",
-                "  headers:",
-                "    someHeaderKey: someHeaderValue",
-                "  data: Some message"
-            }
+            full = true,
+            code = """
+                id: nats_produce_single_message
+                namespace: company.team
+                
+                tasks:
+                  - id: produce
+                    type: io.kestra.plugin.nats.Produce
+                    url: nats://localhost:4222
+                    username: nats_user
+                    password: nats_password
+                    subject: kestra.publish
+                    from:
+                      headers:
+                        someHeaderKey: someHeaderValue
+                      data: Some message
+                """
         ),
         @Example(
             title = "Produce 2 messages to kestra.publish subject, using user password authentication.",
-            code = {
-                "url: nats://localhost:4222",
-                "username: nats_user",
-                "password: nats_passwd",
-                "subject: kestra.publish",
-                "from:",
-                "  - headers:",
-                "      someHeaderKey: someHeaderValue",
-                "    data: Some message",
-                "  - data: Another message",
-            }
+            full = true,
+            code = """
+                id: nats_produce_two_messages
+                namespace: company.team
+                
+                tasks:
+                  - id: produce
+                    type: io.kestra.plugin.nats.Produce
+                    url: nats://localhost:4222
+                    username: nats_user
+                    password: nats_password
+                    subject: kestra.publish
+                    from:
+                      - headers:
+                          someHeaderKey: someHeaderValue
+                        data: Some message
+                      - data: Another message
+                """
         ),
         @Example(
             title = "Produce messages (1 / row) from an internal storage file to kestra.publish subject, using user password authentication.",
-            code = {
-                "url: nats://localhost:4222",
-                "username: nats_user",
-                "password: nats_passwd",
-                "subject: kestra.publish",
-                "from: {{outputs.someTaskWithOutputFile.uri}}"
-            }
+            full = true,
+            code = """
+                id: nats_produce_messages_from_file
+                namespace: company.team
+                
+                tasks:
+                  - id: produce
+                    type: io.kestra.plugin.nats.Produce
+                    url: nats://localhost:4222
+                    username: nats_user
+                    password: nats_password
+                    subject: kestra.publish
+                    from: "{{ outputs.some_task_with_output_file.uri }}"
+                """
         ),
     }
 )

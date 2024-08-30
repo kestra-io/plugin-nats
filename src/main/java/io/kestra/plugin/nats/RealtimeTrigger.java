@@ -64,16 +64,17 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                   - id: log
                     type: io.kestra.plugin.core.log.Log
                     message: "{{ trigger.data }}"
+                
                 triggers:
                   - id: watch
                     type: io.kestra.plugin.nats.RealtimeTrigger
                     url: nats://localhost:4222
-                    username: kestra
-                    password: k3stra
+                    username: nats_user
+                    password: nats_password
                     subject: kestra.trigger
                     durableId: natsTrigger
                     deliverPolicy: All
-                    """
+                """
             }
         )
     }
