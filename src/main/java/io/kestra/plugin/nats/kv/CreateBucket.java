@@ -68,25 +68,25 @@ public class CreateBucket extends NatsConnection implements RunnableTask<CreateB
 	private String description;
 
 	@Schema(
-		title = "the description of the key value bucket"
+		title = "the metadata of the key value bucket"
 	)
 	@PluginProperty(dynamic = true)
 	private Map<String,String> metadata;
 
 	@Schema(
-		title = "The maximum number of history for any one key."
+		title = "The maximum number of history for a key."
 	)
 	@Builder.Default
 	@PluginProperty
 	private Integer historyPerKey = 1;
 
 	@Schema(
-		title = "The maximum number of bytes for this bucket."
+		title = "The maximum size in bytes for this bucket."
 	)
 	private Long bucketSize;
 
 	@Schema(
-		title = "The maximum size for an individual value in the bucket."
+		title = "The maximum size in bytes for an individual value in the bucket."
 	)
 	private Long valueSize;
 
@@ -146,7 +146,7 @@ public class CreateBucket extends NatsConnection implements RunnableTask<CreateB
 		private String description;
 
 		@Schema(
-			title = "The maximum number of history for any one key."
+			title = "The maximum number of history for a key."
 		)
 		private long history;
 
@@ -156,12 +156,12 @@ public class CreateBucket extends NatsConnection implements RunnableTask<CreateB
 		private long entryCount;
 
 		@Schema(
-			title = "The maximum number of bytes for this bucket."
+			title = "The maximum size in bytes for this bucket."
 		)
 		private long bucketSize;
 
 		@Schema(
-			title = "The maximum size for an individual value in the bucket."
+			title = "The maximum size in bytes for an individual value in the bucket."
 		)
 		private long valueSize;
 

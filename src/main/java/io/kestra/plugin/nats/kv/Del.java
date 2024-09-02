@@ -4,6 +4,7 @@ import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.tasks.RunnableTask;
+import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.nats.NatsConnection;
 import io.nats.client.Connection;
@@ -44,7 +45,7 @@ import java.util.stream.Collectors;
         ),
     }
 )
-public class Del extends NatsConnection implements RunnableTask<Del.Output> {
+public class Del extends NatsConnection implements RunnableTask<VoidOutput> {
 
 	@Schema(
 		title = "The name of the key value bucket."
@@ -61,31 +62,17 @@ public class Del extends NatsConnection implements RunnableTask<Del.Output> {
 	private List<String> keys;
 
 	@Override
-	public Del.Output run(RunContext runContext) throws Exception {
+	public VoidOutput run(RunContext runContext) throws Exception {
 		try (Connection connection = super.connect(runContext)) {
 			KeyValue keyValue = connection.keyValue(runContext.render(this.bucketName));
 
 			Map<String, Boolean> deleted = new HashMap<>();
 			for (String key : runContext.render(this.keys)) {
 				keyValue.delete(key);
-				deleted.put(key, true);
 			}
 
-			return Output.builder()
-				.output(deleted)
-				.build();
+			return new VoidOutput();
 		}
-	}
-
-	@Getter
-	@Builder
-	public static class Output implements io.kestra.core.models.tasks.Output {
-
-		@Schema(
-			title = "The Key/Value pairs delete result."
-		)
-		private Map<String, Boolean> output;
-
 	}
 
 }

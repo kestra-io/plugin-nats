@@ -26,7 +26,7 @@ public class DelTest {
 		Map<String, Object> keyValuePair = putPair(bucket);
 		List<String> keys = new ArrayList<>(keyValuePair.keySet());
 
-		Del.Output delOutput = Del.builder()
+		Del.builder()
 			.url("localhost:4222")
 			.username("kestra")
 			.password("k3stra")
@@ -37,23 +37,13 @@ public class DelTest {
 			.build()
 			.run(runContextFactory.of());
 
-		assertThat(delOutput.getOutput(), notNullValue());
-		assertThat(
-			delOutput.getOutput(),
-			Matchers.allOf(
-				hasEntry("key1", true),
-				hasEntry("key2", true),
-				hasEntry("key3", true)
-			)
-		);
-
 		Get.Output getOutput = Get.builder()
 			.url("localhost:4222")
 			.username("kestra")
 			.password("k3stra")
 			.bucketName(bucket)
 			.keys(
-				keys
+				new ArrayList<>(keyValuePair.keySet())
 			)
 			.build()
 			.run(runContextFactory.of());
