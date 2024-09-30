@@ -30,70 +30,77 @@ import java.util.Map;
 @Plugin(
     examples = {
         @Example(
-            code = {
-                "url: nats://localhost:4222",
-                "username: nats_user",
-                "password: nats_passwd",
-                "bucketName: my_bucket",
-	            "values:",
-                "  - key1: value1",
-                "  - key2: value2",
-                "  - key3:",
-                "    - subKey1: some other value"
-            }
+            full = true,
+            code = """
+                id: nats_kv_put
+                namespace: company.team
+
+                tasks:
+                  - id: put
+                    type: io.kestra.plugin.nats.kv.Put
+                    url: nats://localhost:4222
+                    username: nats_user
+                    password: nats_passwd
+                    bucketName: my_bucket
+                    values:
+                      - key1: value1
+                      - key2: value2
+                      - key3:
+                        - subKey1: some other value
+                """
         ),
     }
 )
 public class Put extends NatsConnection implements RunnableTask<Put.Output> {
 
-	private final static ObjectMapper mapper = JacksonMapper.ofJson();
+    private final static ObjectMapper mapper = JacksonMapper.ofJson();
 
-	@Schema(
-		title = "The name of the key value bucket."
-	)
-	@NotBlank
-	@PluginProperty(dynamic = true)
-	private String bucketName;
+    @Schema(
+        title = "The name of the key value bucket."
+    )
+    @NotBlank
+    @PluginProperty(dynamic = true)
+    private String bucketName;
 
-	@Schema(
-		title = "The Key/Value pairs."
-	)
-	@NotNull
-	@PluginProperty(dynamic = true)
-	private Map<String, Object> values;
+    @Schema(
+        title = "The Key/Value pairs."
+    )
+    @NotNull
+    @PluginProperty(dynamic = true)
+    private Map<String, Object> values;
 
-	@Override
-	public Put.Output run(RunContext runContext) throws Exception {
-		try (Connection connection = super.connect(runContext)) {
-			KeyValue keyValue = connection.keyValue(runContext.render(this.bucketName));
+    @Override
+    public Put.Output run(RunContext runContext) throws Exception {
+        try (Connection connection = super.connect(runContext)) {
+            KeyValue keyValue = connection.keyValue(runContext.render(this.bucketName));
 
-			Map<String, Long> revisions = new HashMap<>();
-			for (Map.Entry<String, Object> entry : runContext.render(this.values).entrySet()) {
-				String key = entry.getKey();
+            Map<String, Long> revisions = new HashMap<>();
+            for (Map.Entry<String, Object> entry : runContext.render(this.values).entrySet()) {
+                String key = entry.getKey();
 
-				long revision = keyValue.put(
-					key,
-					mapper.writeValueAsString(entry.getValue()).getBytes()
-				);
+                long revision = keyValue.put(
+                    key,
+                    mapper.writeValueAsString(entry.getValue()).getBytes()
+                );
 
-				revisions.put(key, revision);
-			}
+                revisions.put(key, revision);
+            }
 
-			return Output.builder()
-				.revisions(revisions)
-				.build();
-		}
-	}
+            return Output.builder()
+                .revisions(revisions)
+                .build();
+        }
+    }
 
-	@Getter
-	@Builder
-	public static class Output implements io.kestra.core.models.tasks.Output {
+    @Getter
+    @Builder
+    public static class Output implements io.kestra.core.models.tasks.Output {
 
-		@Schema(
-			title = "The revision numbers for the each key."
-		)
-		private Map<String, Long> revisions;
+        @Schema(
+            title = "The revision numbers for each key."
+        )
+        private Map<String, Long> revisions;
 
-	}
+    }
 
 }

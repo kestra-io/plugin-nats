@@ -4,7 +4,6 @@ import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import jakarta.inject.Inject;
-import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -15,7 +14,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
 @KestraTest
-public class DelTest {
+public class DeleteTest {
 
 	@Inject
 	protected RunContextFactory runContextFactory;
@@ -26,7 +25,7 @@ public class DelTest {
 		Map<String, Object> keyValuePair = putPair(bucket);
 		List<String> keys = new ArrayList<>(keyValuePair.keySet());
 
-		Del.builder()
+		Delete.builder()
 			.url("localhost:4222")
 			.username("kestra")
 			.password("k3stra")
