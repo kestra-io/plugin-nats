@@ -13,6 +13,7 @@ import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 
 @SuperBuilder
 @ToString
@@ -26,10 +27,16 @@ public abstract class NatsConnection extends Task implements NatsConnectionInter
 
     protected String password;
 
+    protected String token;
+
     protected Connection connect(RunContext runContext) throws IOException, InterruptedException, IllegalVariableEvaluationException {
         Options.Builder connectOptions = Options.builder().server(runContext.render(url));
-        if (username != null) {
+        if (username != null && password != null) {
             connectOptions.userInfo(runContext.render(username), runContext.render(password));
+        }
+
+        if (token != null) {
+            connectOptions.token(runContext.render(token).toCharArray());
         }
 
         return Nats.connect(connectOptions.build());

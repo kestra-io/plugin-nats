@@ -27,4 +27,10 @@ public interface NatsConnectionInterface {
     )
     @PluginProperty(dynamic = true)
     String getPassword();
+
+    @Schema(
+        title = "Token authentification"
+    )
+    @PluginProperty(dynamic = true)
+    String getToken();
 }
