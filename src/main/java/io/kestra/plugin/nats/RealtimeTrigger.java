@@ -84,6 +84,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     private String username;
     private String password;
     private String token;
+    private String creds;
     private String subject;
     private String durableId;
     private String since;

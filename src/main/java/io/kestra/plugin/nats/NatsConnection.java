@@ -3,6 +3,7 @@ package io.kestra.plugin.nats;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
+import io.nats.client.AuthHandler;
 import io.nats.client.Connection;
 import io.nats.client.Nats;
 import io.nats.client.Options;
@@ -12,6 +13,7 @@ import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
@@ -29,6 +31,8 @@ public abstract class NatsConnection extends Task implements NatsConnectionInter
 
     protected String token;
 
+    protected String creds;
+
     protected Connection connect(RunContext runContext) throws IOException, InterruptedException, IllegalVariableEvaluationException {
         Options.Builder connectOptions = Options.builder().server(runContext.render(url));
         if (username != null && password != null) {
@@ -37,6 +41,15 @@ public abstract class NatsConnection extends Task implements NatsConnectionInter
 
         if (token != null) {
             connectOptions.token(runContext.render(token).toCharArray());
+        }
+
+        if (this.creds != null) {
+            File credsFiles = runContext.workingDir()
+                .createTempFile(runContext.render(this.creds).getBytes(StandardCharsets.UTF_8), "creds")
+                .toFile();
+
+            AuthHandler ah = Nats.credentials(credsFiles.getAbsolutePath());
+            connectOptions.authHandler(ah);
         }
 
         return Nats.connect(connectOptions.build());
