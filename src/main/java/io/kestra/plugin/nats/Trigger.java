@@ -59,6 +59,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     private String username;
     private String password;
     private String token;
+    private String creds;
     private String subject;
     private String durableId;
     private String since;

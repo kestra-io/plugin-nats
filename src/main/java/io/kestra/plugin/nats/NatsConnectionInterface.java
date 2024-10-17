@@ -33,4 +33,10 @@ public interface NatsConnectionInterface {
     )
     @PluginProperty(dynamic = true)
     String getToken();
+
+    @Schema(
+        title = "Credentials files authentification"
+    )
+    @PluginProperty(dynamic = true)
+    String getCreds();
 }
