@@ -64,7 +64,7 @@ class TriggerTest extends NatsTest {
         Execution execution = triggerFlow();
 
 
-        BufferedReader inputStream = new BufferedReader(new InputStreamReader(storageInterface.get(null, URI.create((String) execution.getTrigger().getVariables().get("uri")))));
+        BufferedReader inputStream = new BufferedReader(new InputStreamReader(storageInterface.get(null, null, URI.create((String) execution.getTrigger().getVariables().get("uri")))));
         List<Map<String, Object>> result = new ArrayList<>();
         FileSerde.reader(inputStream, r -> result.add((Map<String, Object>) r));
 
