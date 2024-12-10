@@ -1,5 +1,6 @@
 package io.kestra.plugin.nats;
 
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.serializers.FileSerde;
@@ -39,8 +40,8 @@ class ProduceTest extends NatsTest {
         String subject = generateSubject();
         Produce.Output produceOutput = Produce.builder()
             .url("localhost:4222")
-            .username("kestra")
-            .password("k3stra")
+            .username(Property.of("kestra"))
+            .password(Property.of("k3stra"))
             .subject(subject)
             .from(Map.of(
                 "headers", Map.of(SOME_HEADER_KEY, SOME_HEADER_VALUE),
@@ -51,12 +52,12 @@ class ProduceTest extends NatsTest {
 
         Consume.Output consumeOutput = Consume.builder()
             .url("localhost:4222")
-            .username("kestra")
-            .password("k3stra")
+            .username(Property.of("kestra"))
+            .password(Property.of("k3stra"))
             .subject(subject)
-            .durableId("produceMessage-" + UUID.randomUUID())
-            .deliverPolicy(DeliverPolicy.All)
-            .pollDuration(Duration.ofSeconds(1))
+            .durableId(Property.of("produceMessage-" + UUID.randomUUID()))
+            .deliverPolicy(Property.of(DeliverPolicy.All))
+            .pollDuration(Property.of(Duration.ofSeconds(1)))
             .build()
             .run(runContextFactory.of());
 
@@ -78,8 +79,8 @@ class ProduceTest extends NatsTest {
         String subject = generateSubject();
         Produce.Output produceOutput = Produce.builder()
             .url("localhost:4222")
-            .username("kestra")
-            .password("k3stra")
+            .username(Property.of("kestra"))
+            .password(Property.of("k3stra"))
             .subject(subject)
             .from(List.of(
                 Map.of(
@@ -95,12 +96,12 @@ class ProduceTest extends NatsTest {
 
         Consume.Output consumeOutput = Consume.builder()
             .url("localhost:4222")
-            .username("kestra")
-            .password("k3stra")
+            .username(Property.of("kestra"))
+            .password(Property.of("k3stra"))
             .subject(subject)
-            .durableId("produceMultipleMessages-" + UUID.randomUUID())
-            .deliverPolicy(DeliverPolicy.All)
-            .pollDuration(Duration.ofSeconds(1))
+            .durableId(Property.of("produceMultipleMessages-" + UUID.randomUUID()))
+            .deliverPolicy(Property.of(DeliverPolicy.All))
+            .pollDuration(Property.of(Duration.ofSeconds(1)))
             .build()
             .run(runContextFactory.of());
 
@@ -145,8 +146,8 @@ class ProduceTest extends NatsTest {
 
         Produce.Output produceOutput = Produce.builder()
             .url("localhost:4222")
-            .username("kestra")
-            .password("k3stra")
+            .username(Property.of("kestra"))
+            .password(Property.of("k3stra"))
             .subject(subject)
             .from(uri.toString())
             .build()
@@ -154,12 +155,12 @@ class ProduceTest extends NatsTest {
 
         Consume.Output consumeOutput = Consume.builder()
             .url("localhost:4222")
-            .username("kestra")
-            .password("k3stra")
+            .username(Property.of("kestra"))
+            .password(Property.of("k3stra"))
             .subject(subject)
-            .durableId("produceMultipleMessages-" + UUID.randomUUID())
-            .deliverPolicy(DeliverPolicy.All)
-            .pollDuration(Duration.ofSeconds(1))
+            .durableId(Property.of("produceMultipleMessages-" + UUID.randomUUID()))
+            .deliverPolicy(Property.of(DeliverPolicy.All))
+            .pollDuration(Property.of(Duration.ofSeconds(1)))
             .build()
             .run(runContextFactory.of());
 

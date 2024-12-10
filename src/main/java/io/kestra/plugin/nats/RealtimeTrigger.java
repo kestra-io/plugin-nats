@@ -4,6 +4,7 @@ import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.AbstractTrigger;
 import io.kestra.core.models.triggers.RealtimeTriggerInterface;
 import io.kestra.core.models.triggers.TriggerContext;
@@ -64,7 +65,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                   - id: log
                     type: io.kestra.plugin.core.log.Log
                     message: "{{ trigger.data }}"
-                
+
                 triggers:
                   - id: watch
                     type: io.kestra.plugin.nats.RealtimeTrigger
@@ -81,19 +82,19 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 )
 public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerInterface, TriggerOutput<Consume.NatsMessageOutput>, NatsConnectionInterface, SubscribeInterface {
     private String url;
-    private String username;
-    private String password;
-    private String token;
-    private String creds;
+    private Property<String> username;
+    private Property<String> password;
+    private Property<String> token;
+    private Property<String> creds;
     private String subject;
-    private String durableId;
-    private String since;
+    private Property<String> durableId;
+    private Property<String> since;
 
     @Builder.Default
     private Integer batchSize = 10;
 
     @Builder.Default
-    private DeliverPolicy deliverPolicy = DeliverPolicy.All;
+    private Property<DeliverPolicy> deliverPolicy = Property.of(DeliverPolicy.All);
 
     @Builder.Default
     @Getter(AccessLevel.NONE)
@@ -126,9 +127,9 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     public Publisher<Consume.NatsMessageOutput> publisher(final Consume task, final RunContext runContext) throws Exception {
 
         final String subject = runContext.render(this.subject);
-        final String durableId = runContext.render(this.durableId);
+        final String durableId = runContext.render(this.durableId).as(String.class).orElse(null);
         final ZonedDateTime startTime = Optional.ofNullable(since)
-            .map(throwFunction(sinceDate -> ZonedDateTime.parse(runContext.render(sinceDate))))
+            .map(throwFunction(sinceDate -> ZonedDateTime.parse(runContext.render(sinceDate).as(String.class).orElse(null))))
             .orElse(null);
 
         return Flux.create(emitter -> {
@@ -137,7 +138,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
                 PullSubscribeOptions options = PullSubscribeOptions.builder()
                     .configuration(ConsumerConfiguration.builder()
                         .ackPolicy(AckPolicy.Explicit)
-                        .deliverPolicy(deliverPolicy)
+                        .deliverPolicy(runContext.render(deliverPolicy).as(DeliverPolicy.class).orElseThrow())
                         .startTime(startTime)
                         .build()
                     )

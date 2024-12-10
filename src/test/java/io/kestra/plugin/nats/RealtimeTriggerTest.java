@@ -1,6 +1,7 @@
 package io.kestra.plugin.nats;
 
 import io.kestra.core.models.executions.Execution;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.queues.QueueFactoryInterface;
 import io.kestra.core.queues.QueueInterface;
 import io.kestra.core.repositories.LocalFlowRepositoryLoader;
@@ -65,8 +66,8 @@ class RealtimeTriggerTest extends NatsTest {
 
             Produce.builder()
                 .url("localhost:4222")
-                .username("kestra")
-                .password("k3stra")
+                .username(Property.of("kestra"))
+                .password(Property.of("k3stra"))
                 .subject("kestra.realtime.trigger")
                 .from(Map.of(
                     "headers", Map.of(SOME_HEADER_KEY, SOME_HEADER_VALUE),

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
@@ -66,8 +67,7 @@ public class Put extends NatsConnection implements RunnableTask<Put.Output> {
         title = "The Key/Value pairs."
     )
     @NotNull
-    @PluginProperty(dynamic = true)
-    private Map<String, Object> values;
+    private Property<Map<String, Object>> values;
 
     @Override
     public Put.Output run(RunContext runContext) throws Exception {
@@ -75,7 +75,7 @@ public class Put extends NatsConnection implements RunnableTask<Put.Output> {
             KeyValue keyValue = connection.keyValue(runContext.render(this.bucketName));
 
             Map<String, Long> revisions = new HashMap<>();
-            for (Map.Entry<String, Object> entry : runContext.render(this.values).entrySet()) {
+            for (Map.Entry<String, Object> entry : runContext.render(this.values).asMap(String.class, Object.class).entrySet()) {
                 String key = entry.getKey();
 
                 long revision = keyValue.put(

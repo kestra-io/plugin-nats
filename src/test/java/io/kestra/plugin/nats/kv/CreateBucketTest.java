@@ -1,6 +1,7 @@
 package io.kestra.plugin.nats.kv;
 
 import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import jakarta.inject.Inject;
@@ -25,8 +26,8 @@ public class CreateBucketTest {
 
 		CreateBucket.Output bucketOutput = CreateBucket.builder()
 			.url("localhost:4222")
-			.username("kestra")
-			.password("k3stra")
+			.username(Property.of("kestra"))
+			.password(Property.of("k3stra"))
 			.name(bucketName)
 			.build()
 			.run(runContextFactory.of());
@@ -49,13 +50,13 @@ public class CreateBucketTest {
 
 		CreateBucket.Output bucketOutput = CreateBucket.builder()
 			.url("localhost:4222")
-			.username("kestra")
-			.password("k3stra")
+			.username(Property.of("kestra"))
+			.password(Property.of("k3stra"))
 			.name(bucketName)
 			.description("My Test Bucket")
-			.bucketSize(1024L)
-			.valueSize(1024L)
-			.metadata(Map.of("key1", "value1", "key2", "value2"))
+			.bucketSize(Property.of(1024L))
+			.valueSize(Property.of(1024L))
+			.metadata(Property.of(Map.of("key1", "value1", "key2", "value2")))
 			.build()
 			.run(runContextFactory.of());
 

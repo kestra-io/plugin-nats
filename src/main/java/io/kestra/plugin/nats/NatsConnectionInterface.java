@@ -1,6 +1,7 @@
 package io.kestra.plugin.nats;
 
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Property;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import jakarta.validation.constraints.NotBlank;
@@ -19,24 +20,20 @@ public interface NatsConnectionInterface {
     @Schema(
         title = "Plaintext authentication username"
     )
-    @PluginProperty(dynamic = true)
-    String getUsername();
+    Property<String> getUsername();
 
     @Schema(
         title = "Plaintext authentication password"
     )
-    @PluginProperty(dynamic = true)
-    String getPassword();
+    Property<String> getPassword();
 
     @Schema(
         title = "Token authentification"
     )
-    @PluginProperty(dynamic = true)
-    String getToken();
+    Property<String> getToken();
 
     @Schema(
         title = "Credentials files authentification"
     )
-    @PluginProperty(dynamic = true)
-    String getCreds();
+    Property<String> getCreds();
 }

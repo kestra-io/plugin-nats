@@ -1,6 +1,7 @@
 package io.kestra.plugin.nats.kv;
 
 import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
 import jakarta.inject.Inject;
@@ -38,12 +39,12 @@ public class GetTest {
 
 		Get.Output getOutput = Get.builder()
 			.url("localhost:4222")
-			.username("kestra")
-			.password("k3stra")
+			.username(Property.of("kestra"))
+			.password(Property.of("k3stra"))
 			.bucketName(bucket)
-			.keys(
+			.keys(Property.of(
 				new ArrayList<>(keyValuePair.keySet())
-			)
+			))
 			.build()
 			.run(runContextFactory.of());
 
@@ -59,12 +60,12 @@ public class GetTest {
 	public void putPair(String bucket, Map<String, Object> keyValuePair) throws Exception {
 		Put.builder()
 			.url("localhost:4222")
-			.username("kestra")
-			.password("k3stra")
+			.username(Property.of("kestra"))
+			.password(Property.of("k3stra"))
 			.bucketName(bucket)
-			.values(
+			.values(Property.of(
 				keyValuePair
-			)
+			))
 			.build()
 			.run(runContextFactory.of());
 	}
@@ -72,8 +73,8 @@ public class GetTest {
 	public String createBucket() throws Exception {
 		CreateBucket.Output bucketOutput = CreateBucket.builder()
 			.url("localhost:4222")
-			.username("kestra")
-			.password("k3stra")
+			.username(Property.of("kestra"))
+			.password(Property.of("k3stra"))
 			.name(IdUtils.create())
 			.build()
 			.run(runContextFactory.of());

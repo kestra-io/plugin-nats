@@ -1,6 +1,7 @@
 package io.kestra.plugin.nats;
 
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Property;
 import io.nats.client.api.DeliverPolicy;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
@@ -24,8 +25,7 @@ public interface SubscribeInterface {
     @Schema(
         title = "ID used to attach the subscription to a durable one, allowing the subscription to start back from a previous position"
     )
-    @PluginProperty(dynamic = true)
-    String getDurableId();
+    Property<String> getDurableId();
 
     @Schema(
         title = "Minimum message timestamp to start consumption from.",
@@ -35,13 +35,12 @@ public interface SubscribeInterface {
             "you will retrieve all messages starting from this date even after subsequent usage of this task." +
             "Must be a valid iso 8601 date."
     )
-    @PluginProperty(dynamic = true)
-    String getSince();
+    Property<String> getSince();
 
     @Schema(
         title = "Messages are fetched by batch of given size."
     )
-    @PluginProperty
+    @PluginProperty(dynamic = true)
     @NotNull
     @Min(1)
     Integer getBatchSize();
@@ -56,7 +55,6 @@ public interface SubscribeInterface {
             "- `ByStartTime`: When first consuming messages, start with messages on or after this time. The consumer is required to specify `since` which defines this start time.\n" +
             "- `LastPerSubject`: When first consuming messages, start with the latest one for each filtered subject currently in the stream.\n"
     )
-    @PluginProperty
     @NotNull
-    DeliverPolicy getDeliverPolicy();
+    Property<DeliverPolicy> getDeliverPolicy();
 }
