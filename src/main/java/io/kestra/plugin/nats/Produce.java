@@ -45,7 +45,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             code = """
                 id: nats_produce_single_message
                 namespace: company.team
-                
+
                 tasks:
                   - id: produce
                     type: io.kestra.plugin.nats.Produce
@@ -65,7 +65,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             code = """
                 id: nats_produce_two_messages
                 namespace: company.team
-                
+
                 tasks:
                   - id: produce
                     type: io.kestra.plugin.nats.Produce
@@ -86,7 +86,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             code = """
                 id: nats_produce_messages_from_file
                 namespace: company.team
-                
+
                 tasks:
                   - id: produce
                     type: io.kestra.plugin.nats.Produce
@@ -107,6 +107,7 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
     @NotBlank
     @NotNull
     private String subject;
+
     @Schema(
         title = "Source of message(s) to send",
         description = "Can be an internal storage uri, a map or a list." +

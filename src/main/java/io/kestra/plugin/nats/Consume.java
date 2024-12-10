@@ -1,7 +1,9 @@
 package io.kestra.plugin.nats;
 
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
@@ -12,10 +14,6 @@ import io.nats.client.api.DeliverPolicy;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.reactivestreams.Publisher;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.FluxSink;
-import reactor.core.scheduler.Schedulers;
 
 import java.io.*;
 import java.net.URI;
@@ -25,7 +23,6 @@ import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
 import static io.kestra.core.utils.Rethrow.throwFunction;
@@ -49,7 +46,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             code = """
                 id: nats_consume_messages
                 namespace: company.team
-                
+
                 tasks:
                   - id: consume
                     type: io.kestra.plugin.nats.Consume
@@ -67,22 +64,22 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
 
     private String subject;
 
-    private String durableId;
+    private Property<String> durableId;
 
-    private String since;
+    private Property<String> since;
 
     @Builder.Default
-    private Duration pollDuration = Duration.ofSeconds(2);
+    private Property<Duration> pollDuration = Property.of(Duration.ofSeconds(2));
 
     @Builder.Default
     private Integer batchSize = 10;
 
-    private Integer maxRecords;
+    private Property<Integer> maxRecords;
 
-    private Duration maxDuration;
+    private Property<Duration> maxDuration;
 
     @Builder.Default
-    private DeliverPolicy deliverPolicy = DeliverPolicy.All;
+    private Property<DeliverPolicy> deliverPolicy = Property.of(DeliverPolicy.All);
 
     public Output run(RunContext runContext) throws Exception {
         Connection connection = connect(runContext);
@@ -91,10 +88,10 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
             PullSubscribeOptions.builder()
                 .configuration(ConsumerConfiguration.builder()
                     .ackPolicy(AckPolicy.Explicit)
-                    .deliverPolicy(deliverPolicy)
-                    .startTime(Optional.ofNullable(since).map(throwFunction(sinceDate -> ZonedDateTime.parse(runContext.render(sinceDate)))).orElse(null))
+                    .deliverPolicy(runContext.render(deliverPolicy).as(DeliverPolicy.class).orElseThrow())
+                    .startTime(runContext.render(since).as(String.class).map(ZonedDateTime::parse).orElse(null))
                     .build())
-                .durable(runContext.render(durableId)).build()
+                .durable(runContext.render(durableId).as(String.class).orElse(null)).build()
         );
 
         Instant pollStart = Instant.now();
@@ -104,11 +101,14 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
         try (OutputStream output = new BufferedOutputStream(new FileOutputStream(outputFile))) {
             AtomicReference<Integer> maxMessagesRemainingRef = new AtomicReference<>();
             do {
-                Integer maxMessagesRemaining = Optional.ofNullable(maxRecords).map(max -> max - total.get()).orElse(null);
+                Integer maxMessagesRemaining = runContext.render(maxRecords).as(Integer.class)
+                    .map(max -> max - total.get())
+                    .orElse(null);
+
                 maxMessagesRemainingRef.set(maxMessagesRemaining);
 
                 batchSize = Optional.ofNullable(maxMessagesRemaining).map(max -> Math.min(batchSize, max)).orElse(batchSize);
-                messages = subscription.fetch(batchSize, pollDuration);
+                messages = subscription.fetch(batchSize, runContext.render(pollDuration).as(Duration.class).orElseThrow());
 
                 messages.forEach(throwConsumer(message -> {
                     Map<Object, Object> map = new HashMap<>();
@@ -128,7 +128,7 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
                     total.incrementAndGet();
                 }));
             } while (
-                !isEnded(messages, maxMessagesRemainingRef.get(), pollStart)
+                !isEnded(messages, maxMessagesRemainingRef.get(), pollStart, runContext)
             );
         } finally {
             connection.close();
@@ -141,7 +141,7 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
     }
 
     @SuppressWarnings("RedundantIfStatement")
-    private boolean isEnded(List<Message> messages, Integer maxMessagesRemaining, Instant pollStart) {
+    private boolean isEnded(List<Message> messages, Integer maxMessagesRemaining, Instant pollStart, RunContext runContext) throws IllegalVariableEvaluationException {
         if (messages.isEmpty()) {
             return true;
         }
@@ -150,7 +150,7 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
             return true;
         }
 
-        if (Optional.ofNullable(maxDuration).map(max -> Instant.now().isBefore(pollStart.plus(max))).orElse(false)) {
+        if (runContext.render(maxDuration).as(Duration.class).map(max -> Instant.now().isBefore(pollStart.plus(max))).orElse(false)) {
             return true;
         }
 

@@ -3,6 +3,7 @@ package io.kestra.plugin.nats.kv;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.runners.RunContext;
@@ -62,16 +63,14 @@ public class Delete extends NatsConnection implements RunnableTask<VoidOutput> {
           title = "The keys of Key/Value pairs."
      )
      @NotNull
-     @PluginProperty(dynamic = true)
-     private List<String> keys;
+     private Property<List<String>> keys;
 
      @Override
      public VoidOutput run(RunContext runContext) throws Exception {
           try (Connection connection = super.connect(runContext)) {
                KeyValue keyValue = connection.keyValue(runContext.render(this.bucketName));
 
-               Map<String, Boolean> deleted = new HashMap<>();
-               for (String key : runContext.render(this.keys)) {
+               for (String key : runContext.render(this.keys).asList(String.class)) {
                     keyValue.delete(key);
                }
 

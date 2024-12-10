@@ -1,6 +1,7 @@
 package io.kestra.plugin.nats;
 
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Property;
 import io.nats.client.api.DeliverPolicy;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -14,21 +15,18 @@ public interface ConsumeInterface {
     @Schema(
         title = "The max number of rows to fetch before stopping"
     )
-    @PluginProperty
-    Integer getMaxRecords();
+    Property<Integer> getMaxRecords();
 
     @Schema(
         title = "The max duration before stopping the message polling",
         description = "It's not an hard limit and is evaluated every second"
     )
-    @PluginProperty
-    Duration getMaxDuration();
+    Property<Duration> getMaxDuration();
 
     @Schema(
         title = "Polling duration before processing message",
         description = "If no messages are available, define the max duration to wait for new messages"
     )
-    @PluginProperty
     @NotNull
-    Duration getPollDuration();
+    Property<Duration> getPollDuration();
 }

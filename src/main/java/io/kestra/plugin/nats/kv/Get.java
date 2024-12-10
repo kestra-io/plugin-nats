@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
@@ -90,14 +91,12 @@ public class Get extends NatsConnection implements RunnableTask<Get.Output> {
         title = "The keys of Key/Value pairs."
     )
     @NotNull
-    @PluginProperty(dynamic = true)
-    private List<String> keys;
+    private Property<List<String>> keys;
 
     @Schema(
         title = "The keys with revision of Key/Value pairs."
     )
-    @PluginProperty
-    private Map<String, Long> keyRevisions;
+    private Property<Map<String, Long>> keyRevisions;
 
     @Override
     public Get.Output run(RunContext runContext) throws Exception {
@@ -106,11 +105,11 @@ public class Get extends NatsConnection implements RunnableTask<Get.Output> {
 
             List<KeyValueEntry> entries = new ArrayList<>();
             if (this.keyRevisions == null) {
-                for (String key : runContext.render(this.keys)) {
+                for (String key : runContext.render(this.keys).asList(String.class)) {
                     entries.add(keyValue.get(key));
                 }
             } else {
-                for (Map.Entry<String, Long> entry : this.keyRevisions.entrySet()) {
+                for (Map.Entry<String, Long> entry : runContext.render(this.keyRevisions).asMap(String.class, Long.class).entrySet()) {
                     entries.add(keyValue.get(entry.getKey(), entry.getValue()));
                 }
             }

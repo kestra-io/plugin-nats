@@ -1,5 +1,6 @@
 package io.kestra.plugin.nats;
 
+import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.Rethrow;
 import io.nats.client.*;
@@ -61,12 +62,12 @@ class ConsumeTest extends NatsTest {
 
         Consume.Output output = Consume.builder()
             .url("localhost:4222")
-            .username("kestra")
-            .password("k3stra")
+            .username(Property.of("kestra"))
+            .password(Property.of("k3stra"))
             .subject("kestra.consumeMessageFromSubject.>")
-            .durableId("consumeMessageFromSubject-" + UUID.randomUUID())
-            .deliverPolicy(DeliverPolicy.LastPerSubject)
-            .pollDuration(Duration.ofSeconds(1))
+            .durableId(Property.of("consumeMessageFromSubject-" + UUID.randomUUID()))
+            .deliverPolicy(Property.of(DeliverPolicy.LastPerSubject))
+            .pollDuration(Property.of(Duration.ofSeconds(1)))
             .batchSize(1)
             .build()
             .run(runContextFactory.of());
@@ -124,13 +125,13 @@ class ConsumeTest extends NatsTest {
 
         Consume.Output output = Consume.builder()
             .url("localhost:4222")
-            .username("kestra")
-            .password("k3stra")
+            .username(Property.of("kestra"))
+            .password(Property.of("k3stra"))
             .subject("kestra.consumeSince.>")
-            .durableId("consumeSince-" + UUID.randomUUID())
-            .deliverPolicy(DeliverPolicy.ByStartTime)
-            .pollDuration(Duration.ofSeconds(1))
-            .since(messageTimestamp.get().minus(1, ChronoUnit.MILLIS).toString())
+            .durableId(Property.of("consumeSince-" + UUID.randomUUID()))
+            .deliverPolicy(Property.of(DeliverPolicy.ByStartTime))
+            .pollDuration(Property.of(Duration.ofSeconds(1)))
+            .since(Property.of(messageTimestamp.get().minus(1, ChronoUnit.MILLIS).toString()))
             .build()
             .run(runContextFactory.of());
 

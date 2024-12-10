@@ -3,6 +3,7 @@ package io.kestra.plugin.nats.kv;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.nats.NatsConnection;
@@ -84,25 +85,23 @@ public class CreateBucket extends NatsConnection implements RunnableTask<CreateB
     @Schema(
         title = "The metadata of the key value bucket."
     )
-    @PluginProperty(dynamic = true)
-    private Map<String,String> metadata;
+    private Property<Map<String, String>> metadata;
 
     @Schema(
         title = "The maximum number of history for a key."
     )
     @Builder.Default
-    @PluginProperty
-    private Integer historyPerKey = 1;
+    private Property<Integer> historyPerKey = Property.of(1);
 
     @Schema(
         title = "The maximum size in bytes for this bucket."
     )
-    private Long bucketSize;
+    private Property<Long> bucketSize;
 
     @Schema(
         title = "The maximum size in bytes for an individual value in the bucket."
     )
-    private Long valueSize;
+    private Property<Long> valueSize;
 
     @Override
     public CreateBucket.Output run(RunContext runContext) throws Exception {
@@ -111,22 +110,22 @@ public class CreateBucket extends NatsConnection implements RunnableTask<CreateB
 
             KeyValueConfiguration.Builder builder = KeyValueConfiguration.builder()
                 .name(runContext.render(this.name))
-                .maxHistoryPerKey(this.historyPerKey);
+                .maxHistoryPerKey(runContext.render(this.historyPerKey).as(Integer.class).orElseThrow());
 
             if (this.description != null) {
                 builder.description(runContext.render(this.description));
             }
 
             if (this.metadata != null) {
-                builder.metadata(runContext.renderMap(metadata));
+                builder.metadata(runContext.render(metadata).asMap(String.class, String.class));
             }
 
             if (this.bucketSize != null) {
-                builder.maxBucketSize(this.bucketSize);
+                builder.maxBucketSize(runContext.render(this.bucketSize).as(Long.class).orElseThrow());
             }
 
             if (this.valueSize != null) {
-                builder.maxValueSize(this.valueSize);
+                builder.maxValueSize(runContext.render(this.valueSize).as(Long.class).orElseThrow());
             }
 
             KeyValueConfiguration configuration = builder.build();

@@ -4,6 +4,7 @@ import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.*;
 import io.kestra.core.runners.RunContext;
 import io.nats.client.api.DeliverPolicy;
@@ -38,7 +39,7 @@ import java.util.Optional;
                   - id: log
                     type: io.kestra.plugin.core.log.Log
                     message: "{{ trigger.data }}"
-                
+
                 triggers:
                   - id: watch
                     type: io.kestra.plugin.nats.Trigger
@@ -56,21 +57,21 @@ import java.util.Optional;
 )
 public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Consume.Output>, NatsConnectionInterface, ConsumeInterface, SubscribeInterface {
     private String url;
-    private String username;
-    private String password;
-    private String token;
-    private String creds;
+    private Property<String> username;
+    private Property<String> password;
+    private Property<String> token;
+    private Property<String> creds;
     private String subject;
-    private String durableId;
-    private String since;
+    private Property<String> durableId;
+    private Property<String> since;
     @Builder.Default
-    private Duration pollDuration = Duration.ofSeconds(2);
+    private Property<Duration> pollDuration = Property.of(Duration.ofSeconds(2));
     @Builder.Default
     private Integer batchSize = 10;
-    private Integer maxRecords;
-    private Duration maxDuration;
+    private Property<Integer> maxRecords;
+    private Property<Duration> maxDuration;
     @Builder.Default
-    private DeliverPolicy deliverPolicy = DeliverPolicy.All;
+    private Property<DeliverPolicy> deliverPolicy = Property.of(DeliverPolicy.All);
     @Builder.Default
     private final Duration interval = Duration.ofSeconds(60);
 
