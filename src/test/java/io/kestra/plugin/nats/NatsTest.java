@@ -28,10 +28,6 @@ class NatsTest {
         return result;
     }
 
-    protected String base64Encoded(String baseString) {
-        return new String(Base64.getEncoder().encode(baseString.getBytes()));
-    }
-
     protected static class HeaderMatcher extends BaseMatcher<Object> {
         private final Matcher<Map<? extends String, ? extends Iterable<? extends String>>> mapMatcher;
 

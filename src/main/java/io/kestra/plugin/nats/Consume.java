@@ -119,7 +119,7 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
                             .map(headers -> headers.entrySet().toArray(Map.Entry[]::new))
                             .orElse(new Map.Entry[0])
                     ));
-                    map.put("data", Base64.getEncoder().encodeToString(message.getData()));
+                    map.put("data", new String(message.getData()));
                     map.put("timestamp", message.metaData().timestamp().toInstant());
 
                     FileSerde.write(output, map);

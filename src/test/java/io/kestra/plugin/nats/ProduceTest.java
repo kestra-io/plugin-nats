@@ -69,7 +69,7 @@ class ProduceTest extends NatsTest {
             Matchers.allOf(
                 Matchers.hasEntry("subject", subject),
                 Matchers.hasEntry(is("headers"), new HeaderMatcher(hasEntry(is(SOME_HEADER_KEY), contains(SOME_HEADER_VALUE)))),
-                Matchers.hasEntry("data", base64Encoded("Hello Kestra From Produce Task"))
+                Matchers.hasEntry("data", "Hello Kestra From Produce Task")
             )
         ));
     }
@@ -113,12 +113,12 @@ class ProduceTest extends NatsTest {
             Matchers.allOf(
                 Matchers.hasEntry("subject", subject),
                 Matchers.hasEntry(is("headers"), new HeaderMatcher(hasEntry(is(SOME_HEADER_KEY), contains(SOME_HEADER_VALUE)))),
-                Matchers.hasEntry("data", base64Encoded("Hello Kestra From Produce Task"))
+                Matchers.hasEntry("data", "Hello Kestra From Produce Task")
             ),
             Matchers.allOf(
                 Matchers.hasEntry("subject", subject),
                 Matchers.hasEntry(is("headers"), new HeaderMatcher(anEmptyMap())),
-                Matchers.hasEntry("data", base64Encoded("Hello Again From Another Produce Task"))
+                Matchers.hasEntry("data", "Hello Again From Another Produce Task")
             )
         ));
     }
@@ -172,12 +172,12 @@ class ProduceTest extends NatsTest {
             Matchers.allOf(
                 Matchers.hasEntry("subject", subject),
                 Matchers.hasEntry(is("headers"), new HeaderMatcher(hasEntry(is(SOME_HEADER_KEY), contains(SOME_HEADER_VALUE)))),
-                Matchers.hasEntry("data", base64Encoded("Hello Kestra From Produce Task"))
+                Matchers.hasEntry("data", "Hello Kestra From Produce Task")
             ),
             Matchers.allOf(
                 Matchers.hasEntry("subject", subject),
                 Matchers.hasEntry(is("headers"), new HeaderMatcher(anEmptyMap())),
-                Matchers.hasEntry("data", base64Encoded("Hello Again From Another Produce Task"))
+                Matchers.hasEntry("data", "Hello Again From Another Produce Task")
             )
         ));
     }

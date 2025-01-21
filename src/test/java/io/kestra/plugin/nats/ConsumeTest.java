@@ -82,14 +82,14 @@ class ConsumeTest extends NatsTest {
             Matchers.<Map<String, Object>>allOf(
                 Matchers.hasEntry("subject", "kestra.consumeMessageFromSubject.topic"),
                 Matchers.hasEntry(is("headers"), new HeaderMatcher(hasEntry(is(expectedHeaderKey), contains(expectedHeaderValue)))),
-                Matchers.hasEntry("data", base64Encoded("Hello Kestra")),
+                Matchers.hasEntry("data", "Hello Kestra"),
                 Matchers.hasEntry("timestamp", messageInstant.get())
             )
             ,
             Matchers.<Map<String, Object>>allOf(
                 Matchers.hasEntry("subject", "kestra.consumeMessageFromSubject.anotherTopic"),
                 Matchers.hasEntry(is("headers"), new HeaderMatcher(anEmptyMap())),
-                Matchers.hasEntry("data", base64Encoded("Hello Again"))
+                Matchers.hasEntry("data", "Hello Again")
             )
         ));
     }
@@ -139,6 +139,6 @@ class ConsumeTest extends NatsTest {
 
         assertThat(output.getMessagesCount(), is(1));
         assertThat(result.size(), is(1));
-        Assertions.assertEquals(base64Encoded("Second message"), result.get(0).get("data"));
+        Assertions.assertEquals("Second message", result.get(0).get("data"));
     }
 }
