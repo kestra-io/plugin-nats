@@ -13,11 +13,10 @@ import io.nats.client.impl.NatsMessage;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import reactor.core.publisher.Flux;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import reactor.core.publisher.Flux;
-
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URI;
@@ -72,7 +71,7 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
         description = """
             Can be an internal storage URI, a map, or a list of maps.
             If a list, only the first item is used.
-            Each map may have keys 'headers' and 'data'.
+            Each map may have keys 'headers' and 'data' (which can contain Kestra variables).
         """
     )
     @NotNull
@@ -81,33 +80,33 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
 
     @Schema(
         title = "Timeout in milliseconds to wait for a response.",
-        description = "Defaults to 5000 ms if none is provided."
+        description = "Defaults to 5000 ms."
     )
     @Builder.Default
     private Integer requestTimeout = 5000;
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-        // Connect to NATS
+        // 1) Connect to NATS
         Connection connection = this.connect(runContext);
 
-        // Render the subject (in case it's templated)
+        // 2) Interpolate the subject (if it has placeholders like {{ ... }})
         String renderedSubject = runContext.render(this.subject);
 
-        // Extract a single map from 'from'
-        Map<String, Object> requestMessage = retrieveSingleMessage(runContext);
+        // 3) Get the raw message from 'from' and then interpolate the entire map, including headers
+        Map<String, Object> rawMessage = retrieveSingleMessage(runContext);
+        Map<String, Object> renderedMessage = runContext.render(rawMessage);
 
-        // Build the NATS message
-        Message natsMessage = buildRequestMessage(renderedSubject, requestMessage);
+        // 4) Build the NATS message with the fully rendered subject + map
+        Message natsMessage = buildRequestMessage(renderedSubject, renderedMessage);
 
-        // Perform request-reply, waiting up to requestTimeout ms
+        // 5) Execute request-reply with the configured timeout
         Duration timeoutDuration = Duration.ofMillis(this.requestTimeout);
         Message reply = connection.request(natsMessage, timeoutDuration);
 
-        // Convert the reply data to string if present
+        // 6) Convert the reply (if any) to a UTF-8 string
         String response = (reply == null) ? null : new String(reply.getData(), StandardCharsets.UTF_8);
 
-        // Close connection
         connection.close();
 
         return Output.builder()
@@ -118,45 +117,48 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
     @SuppressWarnings("unchecked")
     private Map<String, Object> retrieveSingleMessage(RunContext runContext) throws Exception {
         switch (this.from) {
+            // A single Kestra storage URI
             case String fromStr -> {
-                // 'from' is a Kestra internal storage URI
                 URI fromUri = new URI(runContext.render(fromStr));
                 if (!"kestra".equalsIgnoreCase(fromUri.getScheme())) {
-                    throw new IllegalArgumentException("Invalid 'from': must be a kestra:// URI for a string input.");
+                    throw new IllegalArgumentException("Invalid 'from': must be a kestra:// URI.");
                 }
 
-                // Read the file from storage, parse the first Ion record
+                // Parse the first record from the Ion/JSON file
                 try (BufferedReader reader = new BufferedReader(new InputStreamReader(runContext.storage().getFile(fromUri)))) {
                     Flux<Object> flux = FileSerde.readAll(reader);
-                    Object first = flux.blockFirst(); // read the first item only
+                    Object first = flux.blockFirst(); // read the first object
                     if (first == null) {
-                        throw new IllegalArgumentException("'from' file is empty; expected one map.");
+                        throw new IllegalArgumentException("'from' file is empty; expected exactly one map.");
                     }
                     if (!(first instanceof Map)) {
                         throw new IllegalArgumentException("'from' file must contain a map for the request message.");
                     }
                     return (Map<String, Object>) first;
                 }
-
-                // Read the file from storage, parse the first Ion record
             }
+
+            // A list => only the first item is used
             case List<?> fromList -> {
                 if (fromList.isEmpty()) {
                     throw new IllegalArgumentException("'from' list is empty; need at least one map.");
                 }
-                Object first = fromList.getFirst();
+                Object first = fromList.get(0);
                 if (!(first instanceof Map)) {
                     throw new IllegalArgumentException("The first item in 'from' list must be a map.");
                 }
                 return (Map<String, Object>) first;
             }
+
+            // A single map => directly use it
             case Map<?, ?> fromMap -> {
-                // Already a map with optional 'headers' and 'data'
                 return (Map<String, Object>) fromMap;
-                // Already a map with optional 'headers' and 'data'
             }
-            case null, default ->
-                throw new IllegalArgumentException("Unsupported type for 'from'. Must be String (kestra URI), Map, or List<Map>.");
+
+            // Any other type => not supported
+            default -> throw new IllegalArgumentException(
+                "Unsupported 'from' type. Must be String (kestra URI), Map, or List<Map>."
+            );
         }
     }
 
@@ -168,17 +170,18 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
         if (headersObj instanceof Map<?, ?> mapHeaders) {
             mapHeaders.forEach((key, value) -> {
                 if (value instanceof Collection<?> multiValues) {
+                    // Multi-value header
                     headers.add(key.toString(), (Collection<String>) multiValues);
                 } else {
-                    headers.add(key.toString(), value.toString());
+                    // Single-value header
+                    headers.add(key.toString(), String.valueOf(value));
                 }
             });
         }
 
         // Data defaults to an empty string if not present
-        String data = (String) msgMap.getOrDefault("data", "");
+        String data = String.valueOf(msgMap.getOrDefault("data", ""));
 
-        // Build the actual NatsMessage
         return NatsMessage.builder()
             .subject(subject)
             .headers(headers)
