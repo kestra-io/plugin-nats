@@ -5,7 +5,6 @@ import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
-import io.kestra.core.serializers.FileSerde;
 import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.impl.Headers;
@@ -13,12 +12,10 @@ import io.nats.client.impl.NatsMessage;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import reactor.core.publisher.Flux;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import java.io.InputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -69,9 +66,11 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
     @Schema(
         title = "Source of message(s) for the request",
         description = """
-            Can be an internal storage URI, a map, or a list of maps.
-            If a list, only the first item is used.
-            Each map may have keys 'headers' and 'data' (which can contain Kestra variables).
+            If this is:
+            - A plain string => entire string is the data
+            - A kestra:// URI => entire file content is read into the data
+            - A list with exactly one item => that item must be a map with optional headers + data
+            - A map => optional 'headers' + 'data' keys
         """
     )
     @NotNull
@@ -93,12 +92,11 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
         // 2) Interpolate the subject (if it has placeholders like {{ ... }})
         String renderedSubject = runContext.render(this.subject);
 
-        // 3) Get the raw message from 'from' and then interpolate the entire map, including headers
-        Map<String, Object> rawMessage = retrieveSingleMessage(runContext);
-        Map<String, Object> renderedMessage = runContext.render(rawMessage);
+        // 3) Retrieve a single "message map" (headers + data)
+        Map<String, Object> messageMap = retrieveSingleMessage(runContext);
 
-        // 4) Build the NATS message with the fully rendered subject + map
-        Message natsMessage = buildRequestMessage(renderedSubject, renderedMessage);
+        // 4) Build the NATS Message
+        Message natsMessage = buildRequestMessage(renderedSubject, messageMap);
 
         // 5) Execute request-reply with the configured timeout
         Duration timeoutDuration = this.requestTimeout;
@@ -116,55 +114,55 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> retrieveSingleMessage(RunContext runContext) throws Exception {
-        switch (this.from) {
-            // A single Kestra storage URI
-            case String fromStr -> {
-                URI fromUri = new URI(runContext.render(fromStr));
+        // CASE 1: "from" is a String
+        if (this.from instanceof String fromStr) {
+            // Render the string (in case it has {{ }} placeholders)
+            String renderedStr = runContext.render(fromStr);
+
+            // If it starts with kestra://, read entire file content into data
+            if (renderedStr.startsWith("kestra://")) {
+                URI fromUri = new URI(renderedStr);
+
                 if (!"kestra".equalsIgnoreCase(fromUri.getScheme())) {
-                    throw new IllegalArgumentException("Invalid 'from': must be a kestra:// URI.");
+                    throw new IllegalArgumentException("Invalid 'from': must be a kestra:// URI or a plain string.");
                 }
 
-                // Parse the first record from the Ion/JSON file
-                try (BufferedReader reader = new BufferedReader(new InputStreamReader(runContext.storage().getFile(fromUri)))) {
-                    Flux<Object> flux = FileSerde.readAll(reader);
-                    Object first = flux.blockFirst(); // read the first object
-                    if (first == null) {
-                        throw new IllegalArgumentException("'from' file is empty; expected exactly one map.");
-                    }
-                    if (!(first instanceof Map)) {
-                        throw new IllegalArgumentException("'from' file must contain a map for the request message.");
-                    }
-                    return (Map<String, Object>) first;
+                try (InputStream is = runContext.storage().getFile(fromUri)) {
+                    String content = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+                    return Map.of("data", content);
                 }
+            } else {
+                // Otherwise, treat the string itself as data
+                return Map.of("data", renderedStr);
             }
-
-            // A list => only the first item is used
-            case List<?> fromList -> {
-                if (fromList.isEmpty()) {
-                    throw new IllegalArgumentException("'from' list is empty; need at least one map.");
-                }
-                Object first = fromList.get(0);
-                if (!(first instanceof Map)) {
-                    throw new IllegalArgumentException("The first item in 'from' list must be a map.");
-                }
-                return (Map<String, Object>) first;
-            }
-
-            // A single map => directly use it
-            case Map<?, ?> fromMap -> {
-                return (Map<String, Object>) fromMap;
-            }
-
-            // Any other type => not supported
-            default -> throw new IllegalArgumentException(
-                "Unsupported 'from' type. Must be String (kestra URI), Map, or List<Map>."
-            );
         }
+
+        // CASE 2: "from" is a List
+        if (this.from instanceof List<?> fromList) {
+            if (fromList.size() != 1) {
+                throw new IllegalArgumentException("'from' list must contain exactly one item for request-reply.");
+            }
+            Object single = fromList.get(0);
+            if (!(single instanceof Map<?, ?>)) {
+                throw new IllegalArgumentException("'from' list's single item must be a map.");
+            }
+            return (Map<String, Object>) single;
+        }
+
+        // CASE 3: "from" is a Map
+        if (this.from instanceof Map<?, ?> fromMap) {
+            return (Map<String, Object>) fromMap;
+        }
+
+        // CASE 4: Not supported
+        throw new IllegalArgumentException(
+            "Unsupported 'from' type. Must be: a String, a Map, or a single-item List<Map>."
+        );
     }
 
     @SuppressWarnings("unchecked")
     private Message buildRequestMessage(String subject, Map<String, Object> msgMap) {
-        // Build NATS headers
+        // Build NATS headers if present
         Headers headers = new Headers();
         Object headersObj = msgMap.getOrDefault("headers", Collections.emptyMap());
         if (headersObj instanceof Map<?, ?> mapHeaders) {

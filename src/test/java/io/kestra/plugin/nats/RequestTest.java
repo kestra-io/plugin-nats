@@ -3,33 +3,31 @@ package io.kestra.plugin.nats;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
-import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.utils.IdUtils;
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
 import jakarta.inject.Inject;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.*;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
 /**
  * Tests the NATS "Request" plugin in a pure request-reply manner.
-
+ *
  * Scenarios:
  *   1) No responder => The request times out => returns null
  *   2) With responder => The request returns the actual reply from the subscriber
- *   3) Reading the request from a file in Kestra's internal storage (must be a single top-level Map)
-
- * Uses helper methods to keep the code DRY.
+ *   3) Reading the request from a file in Kestra's internal storage => entire file => data
+ *   4) List-based scenarios => single item vs. multiple items
  */
 class RequestTest extends NatsTest {
     private static final String BASE_SUBJECT = "kestra.request";
@@ -65,13 +63,12 @@ class RequestTest extends NatsTest {
         String subject = generateSubject();
         RunContext runContext = runContextFactory.of();
 
-        Map<String, Object> singleMessage = Map.of(
-            "headers", Map.of(SOME_HEADER_KEY, SOME_HEADER_VALUE),
-            "data", "A single record from file"
-        );
+        // Instead of storing a map with headers & data,
+        // we'll store plain text. The plugin reads entire file => data.
+        String fileContent = "A single record from file";
 
-        // Store the single map in a file -> get URI
-        URI fileUri = storeSingleMapInStorage(runContext, singleMessage);
+        // Store the text file => produce a kestra:// URI
+        URI fileUri = storeStringInStorage(runContext, fileContent);
 
         // Run request with no responder
         var output = runRequest(subject, fileUri.toString(), Duration.ofMillis(1000));
@@ -97,8 +94,6 @@ class RequestTest extends NatsTest {
             );
 
             var output = runRequest(subject, singleMessage, Duration.ofMillis(2000));
-
-            // Expect real user-level reply
             assertThat(output.getResponse(), is("Hello from local responder!"));
         }
     }
@@ -108,17 +103,15 @@ class RequestTest extends NatsTest {
         String subject = generateSubject();
         RunContext runContext = runContextFactory.of();
 
-        Map<String, Object> singleMessage = Map.of(
-            "headers", Map.of(SOME_HEADER_KEY, SOME_HEADER_VALUE),
-            "data", "Request data from file"
-        );
-
-        // Store the single map -> get URI
-        URI fileUri = storeSingleMapInStorage(runContext, singleMessage);
+        // We'll store plain text in the file
+        String fileContent = "Request data from file";
 
         // ephemeral subscription that replies "Response from file-based request"
         try (Connection conn = this.natsConnection()) {
             setupLocalResponder(conn, subject, "Response from file-based request");
+
+            // Put text file in storage => produce a kestra:// URI
+            URI fileUri = storeStringInStorage(runContext, fileContent);
 
             // Now run request
             var output = runRequest(subject, fileUri.toString(), Duration.ofMillis(3000));
@@ -127,46 +120,110 @@ class RequestTest extends NatsTest {
     }
 
     // ---------------------------------------------------------
+    // 3) LIST SCENARIOS
+    // ---------------------------------------------------------
+
+    @Test
+    void requestSingleItemListSuccess() throws Exception {
+        String subject = generateSubject();
+
+        try (Connection conn = this.natsConnection()) {
+            setupLocalResponder(conn, subject, "List-based reply");
+
+            // fromList with exactly one item, a valid Map
+            Map<String, Object> singleItem = Map.of(
+                "headers", Map.of(SOME_HEADER_KEY, SOME_HEADER_VALUE),
+                "data", "Hello from single-item list"
+            );
+
+            var output = runRequest(subject, List.of(singleItem), Duration.ofMillis(2000));
+            assertThat(output.getResponse(), is("List-based reply"));
+        }
+    }
+
+    @Test
+    void requestMultipleItemsInListShouldFail() {
+        String subject = generateSubject();
+
+        // fromList with multiple maps => should fail
+        var fromList = List.of(
+            Map.of("data", "Message 1"),
+            Map.of("data", "Message 2")
+        );
+
+        // We expect an IllegalArgumentException because it’s more than 1 item
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+            runRequest(subject, fromList, Duration.ofMillis(1000));
+        });
+    }
+
+    @Test
+    void requestEmptyListShouldFail() {
+        String subject = generateSubject();
+
+        // fromList is empty => should fail
+        var fromList = List.of();
+
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+            runRequest(subject, fromList, Duration.ofMillis(1000));
+        });
+    }
+
+    @Test
+    void requestSingleItemListNonMapShouldFail() {
+        String subject = generateSubject();
+
+        // fromList with exactly one item, but it's not a Map
+        var fromList = List.of("I am not a Map!");
+
+        Assertions.assertThrows(IllegalArgumentException.class, () -> {
+            runRequest(subject, fromList, Duration.ofMillis(1000));
+        });
+    }
+
+    // ---------------------------------------------------------
     // HELPER METHODS
     // ---------------------------------------------------------
 
     /**
-     * A helper to run the Request plugin for a given subject, "from" source, and timeout in ms.
+     * A helper to run the Request plugin for a given subject, "from" source, and timeout.
      * Returns the plugin's Output.
      */
-    private Request.Output runRequest(String subject, Object from, Duration timeoutMs) throws Exception {
+    private Request.Output runRequest(String subject, Object from, Duration timeout) throws Exception {
         return Request.builder()
             .url("localhost:4222")
             .username(Property.of("kestra"))
             .password(Property.of("k3stra"))
             .subject(subject)
             .from(from)
-            .requestTimeout(timeoutMs)
+            .requestTimeout(timeout)
             .build()
             .run(runContextFactory.of());
     }
 
     /**
-     * A helper to store a single map in Kestra's internal storage as .ion,
-     * then return the resulting storage URI.
+     * Store the given String as a file in Kestra's internal storage.
+     * Returns the resulting storage URI (like kestra://...).
      */
-    private URI storeSingleMapInStorage(RunContext runContext, Map<String, Object> singleMap) throws Exception {
-        File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
+    private URI storeStringInStorage(RunContext runContext, String content) throws Exception {
+        File tempFile = runContext.workingDir().createTempFile(".txt").toFile();
 
+        // Write the raw text
         try (OutputStream outputStream = new FileOutputStream(tempFile)) {
-            FileSerde.write(outputStream, singleMap);
+            outputStream.write(content.getBytes(StandardCharsets.UTF_8));
         }
 
+        // Upload into Kestra storage => returns a kestra:// URI
         return storageInterface.put(
             null,
             null,
-            URI.create("/" + IdUtils.create() + ".ion"),
+            URI.create("/" + IdUtils.create() + ".txt"),
             new FileInputStream(tempFile)
         );
     }
 
     /**
-     * A helper to create a local ephemeral subscription that replies with the given text.
+     * Create a local ephemeral subscription that replies with the given text.
      * The subscription automatically responds to messages on the given subject.
      */
     private void setupLocalResponder(Connection connection, String subject, String replyText) {
