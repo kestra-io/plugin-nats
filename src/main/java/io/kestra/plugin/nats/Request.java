@@ -83,7 +83,7 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
         description = "Defaults to 5000 ms."
     )
     @Builder.Default
-    private Integer requestTimeout = 5000;
+    private Duration requestTimeout = Duration.ofMillis(5000);
 
     @Override
     public Output run(RunContext runContext) throws Exception {
@@ -101,7 +101,7 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
         Message natsMessage = buildRequestMessage(renderedSubject, renderedMessage);
 
         // 5) Execute request-reply with the configured timeout
-        Duration timeoutDuration = Duration.ofMillis(this.requestTimeout);
+        Duration timeoutDuration = this.requestTimeout;
         Message reply = connection.request(natsMessage, timeoutDuration);
 
         // 6) Convert the reply (if any) to a UTF-8 string

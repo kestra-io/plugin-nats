@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import java.io.*;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
 
@@ -55,7 +56,7 @@ class RequestTest extends NatsTest {
         );
 
         // Run request with no local responder
-        var output = runRequest(subject, singleMessage, 1000);
+        var output = runRequest(subject, singleMessage, Duration.ofMillis(1000));
         assertThat(output.getResponse(), nullValue());
     }
 
@@ -73,7 +74,7 @@ class RequestTest extends NatsTest {
         URI fileUri = storeSingleMapInStorage(runContext, singleMessage);
 
         // Run request with no responder
-        var output = runRequest(subject, fileUri.toString(), 1000);
+        var output = runRequest(subject, fileUri.toString(), Duration.ofMillis(1000));
         assertThat(output.getResponse(), nullValue());
     }
 
@@ -95,7 +96,7 @@ class RequestTest extends NatsTest {
                 "data", "Hello from requestWithResponder test"
             );
 
-            var output = runRequest(subject, singleMessage, 2000);
+            var output = runRequest(subject, singleMessage, Duration.ofMillis(2000));
 
             // Expect real user-level reply
             assertThat(output.getResponse(), is("Hello from local responder!"));
@@ -120,7 +121,7 @@ class RequestTest extends NatsTest {
             setupLocalResponder(conn, subject, "Response from file-based request");
 
             // Now run request
-            var output = runRequest(subject, fileUri.toString(), 3000);
+            var output = runRequest(subject, fileUri.toString(), Duration.ofMillis(3000));
             assertThat(output.getResponse(), is("Response from file-based request"));
         }
     }
@@ -133,7 +134,7 @@ class RequestTest extends NatsTest {
      * A helper to run the Request plugin for a given subject, "from" source, and timeout in ms.
      * Returns the plugin's Output.
      */
-    private Request.Output runRequest(String subject, Object from, int timeoutMs) throws Exception {
+    private Request.Output runRequest(String subject, Object from, Duration timeoutMs) throws Exception {
         return Request.builder()
             .url("localhost:4222")
             .username(Property.of("kestra"))
