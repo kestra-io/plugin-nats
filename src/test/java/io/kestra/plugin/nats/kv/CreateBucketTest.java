@@ -38,7 +38,7 @@ public class CreateBucketTest {
 		assertThat(bucketOutput.getBucketSize(), is(-1L));
 		assertThat(bucketOutput.getValueSize(), is(-1L));
 
-		assertThat(bucketOutput.getDescription(), notNullValue());
+		assertThat(bucketOutput.getDescription(), nullValue());
 
 		assertThat(bucketOutput.getMetadata(), notNullValue());
 	}
