@@ -11,8 +11,7 @@ import org.junit.jupiter.api.Test;
 import java.util.Map;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.nullValue;
+import static org.hamcrest.Matchers.*;
 
 @KestraTest
 public class CreateBucketTest {
@@ -39,9 +38,9 @@ public class CreateBucketTest {
 		assertThat(bucketOutput.getBucketSize(), is(-1L));
 		assertThat(bucketOutput.getValueSize(), is(-1L));
 
-		assertThat(bucketOutput.getDescription(), nullValue());
+		assertThat(bucketOutput.getDescription(), notNullValue());
 
-		assertThat(bucketOutput.getMetadata(), nullValue());
+		assertThat(bucketOutput.getMetadata(), notNullValue());
 	}
 
 	@Test
