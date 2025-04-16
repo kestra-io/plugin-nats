@@ -48,7 +48,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Consume a message in real-time from a NATS subject on a JetStream-enabled NATS server and create one execution per message.",
+    title = "Trigger a flow on message consumption in real-time from a NATS subject on a JetStream-enabled NATS server.",
     description = "If you would like to consume multiple messages processed within a given time frame and process them in batch, you can use the [io.kestra.plugin.nats.Trigger](https://kestra.io/plugins/plugin-nats/triggers/io.kestra.plugin.nats.trigger) instead."
 )
 @Plugin(

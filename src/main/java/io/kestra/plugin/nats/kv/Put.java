@@ -26,7 +26,7 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Puts a Key/Value pair into a NATS Key/Value bucket."
+    title = "Put a Key/Value pair into a NATS Key/Value bucket."
 )
 @Plugin(
     examples = {
