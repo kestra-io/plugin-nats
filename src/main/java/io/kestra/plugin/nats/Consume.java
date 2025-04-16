@@ -35,8 +35,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Schema(
     title = "Consume messages from a NATS subject on a JetStream-enabled NATS server.",
     description = """
-        Please note that the server you run it against must have JetStream enabled for it to work.
-        It should also have a stream configured to match the given subject."""
+        Please note that the server you run the task against must have JetStream enabled for task to work.
+        The server should also have a stream configured to match the given subject."""
 )
 @Plugin(
     examples = {

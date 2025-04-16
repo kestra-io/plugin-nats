@@ -26,7 +26,7 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Deletes a pair from a NATS Key/Value bucket."
+    title = "Delete a pair from a NATS Key/Value bucket."
 )
 @Plugin(
     examples = {
