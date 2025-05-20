@@ -5,6 +5,7 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.storages.StorageInterface;
+import io.kestra.core.tenant.TenantService;
 import io.kestra.core.utils.IdUtils;
 import io.nats.client.api.DeliverPolicy;
 import jakarta.inject.Inject;
@@ -142,7 +143,7 @@ class ProduceTest extends NatsTest {
         try (OutputStream outputStream = new FileOutputStream(tempFile)) {
             messages.forEach(throwConsumer(message -> FileSerde.write(outputStream, message)));
         }
-        URI uri = storageInterface.put(null, null, URI.create("/" + IdUtils.create() + ".ion"), new FileInputStream(tempFile));
+        URI uri = storageInterface.put(TenantService.MAIN_TENANT, null, URI.create("/" + IdUtils.create() + ".ion"), new FileInputStream(tempFile));
 
         Produce.Output produceOutput = Produce.builder()
             .url("localhost:4222")
