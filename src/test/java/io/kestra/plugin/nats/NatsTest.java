@@ -3,6 +3,7 @@ package io.kestra.plugin.nats;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.tenant.TenantService;
 import jakarta.inject.Inject;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -22,7 +23,7 @@ class NatsTest {
     protected StorageInterface storageInterface;
 
     protected List<Map<String, Object>> toMessages(Consume.Output output) throws IOException {
-        BufferedReader inputStream = new BufferedReader(new InputStreamReader(storageInterface.get(null, null, output.getUri())));
+        BufferedReader inputStream = new BufferedReader(new InputStreamReader(storageInterface.get(TenantService.MAIN_TENANT, null, output.getUri())));
         List<Map<String, Object>> result = new ArrayList<>();
         FileSerde.reader(inputStream, r -> result.add((Map<String, Object>) r));
         return result;
