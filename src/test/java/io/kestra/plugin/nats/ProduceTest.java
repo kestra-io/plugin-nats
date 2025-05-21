@@ -36,6 +36,10 @@ class ProduceTest extends NatsTest {
     @Inject
     protected StorageInterface storageInterface;
 
+    public ProduceTest(StorageInterface storageInterface) {
+        super(storageInterface);
+    }
+
     @Test
     void produceMessage() throws Exception {
         String subject = generateSubject();

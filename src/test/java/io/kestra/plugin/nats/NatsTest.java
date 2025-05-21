@@ -19,8 +19,12 @@ import java.util.Map;
 
 @KestraTest
 class NatsTest {
-    @Inject
-    protected StorageInterface storageInterface;
+    protected final StorageInterface storageInterface;
+
+    @Inject // Micronaut supports constructor injection
+    public NatsTest(StorageInterface storageInterface) {
+        this.storageInterface = storageInterface;
+    }
 
     protected List<Map<String, Object>> toMessages(Consume.Output output) throws IOException {
         BufferedReader inputStream = new BufferedReader(new InputStreamReader(storageInterface.get(TenantService.MAIN_TENANT, null, output.getUri())));

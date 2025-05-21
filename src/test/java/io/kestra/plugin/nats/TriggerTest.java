@@ -8,6 +8,7 @@ import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.runners.Worker;
 import io.kestra.core.schedulers.AbstractScheduler;
+import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.tenant.TenantService;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
@@ -48,6 +49,10 @@ class TriggerTest extends NatsTest {
     private LocalFlowRepositoryLoader localFlowRepositoryLoader;
     @Inject
     private RunContextFactory runContextFactory;
+
+    public TriggerTest(StorageInterface storageInterface) {
+        super(storageInterface);
+    }
 
     @Test
     void simpleConsumeTrigger() throws Exception {

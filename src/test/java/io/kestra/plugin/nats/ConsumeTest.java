@@ -2,6 +2,7 @@ package io.kestra.plugin.nats;
 
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.utils.Rethrow;
 import io.nats.client.*;
 import io.nats.client.api.ConsumerConfiguration;
@@ -29,6 +30,10 @@ import static org.hamcrest.Matchers.*;
 class ConsumeTest extends NatsTest {
     @Inject
     protected RunContextFactory runContextFactory;
+
+    public ConsumeTest(StorageInterface storageInterface) {
+        super(storageInterface);
+    }
 
     @Test
     void consumeMessageFromSubject() throws Exception {
