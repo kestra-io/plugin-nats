@@ -39,10 +39,10 @@ public class GetTest {
 
 		Get.Output getOutput = Get.builder()
 			.url("localhost:4222")
-			.username(Property.of("kestra"))
-			.password(Property.of("k3stra"))
+			.username(Property.ofValue("kestra"))
+			.password(Property.ofValue("k3stra"))
 			.bucketName(bucket)
-			.keys(Property.of(
+			.keys(Property.ofValue(
 				new ArrayList<>(keyValuePair.keySet())
 			))
 			.build()
@@ -60,10 +60,10 @@ public class GetTest {
 	public void putPair(String bucket, Map<String, Object> keyValuePair) throws Exception {
 		Put.builder()
 			.url("localhost:4222")
-			.username(Property.of("kestra"))
-			.password(Property.of("k3stra"))
+			.username(Property.ofValue("kestra"))
+			.password(Property.ofValue("k3stra"))
 			.bucketName(bucket)
-			.values(Property.of(
+			.values(Property.ofValue(
 				keyValuePair
 			))
 			.build()
@@ -73,8 +73,8 @@ public class GetTest {
 	public String createBucket() throws Exception {
 		CreateBucket.Output bucketOutput = CreateBucket.builder()
 			.url("localhost:4222")
-			.username(Property.of("kestra"))
-			.password(Property.of("k3stra"))
+			.username(Property.ofValue("kestra"))
+			.password(Property.ofValue("k3stra"))
 			.name(IdUtils.create())
 			.build()
 			.run(runContextFactory.of());

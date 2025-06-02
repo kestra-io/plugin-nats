@@ -25,10 +25,10 @@ public class PutTest {
 
 		Put.Output putOutput = Put.builder()
 			.url("localhost:4222")
-			.username(Property.of("kestra"))
-			.password(Property.of("k3stra"))
+			.username(Property.ofValue("kestra"))
+			.password(Property.ofValue("k3stra"))
 			.bucketName(bucket)
-			.values(Property.of(
+			.values(Property.ofValue(
 				Map.of(
 					"key1", "value1",
 					"key2", 2L,
@@ -44,8 +44,8 @@ public class PutTest {
 	public String createBucket() throws Exception {
 		CreateBucket.Output bucketOutput = CreateBucket.builder()
 			.url("localhost:4222")
-			.username(Property.of("kestra"))
-			.password(Property.of("k3stra"))
+			.username(Property.ofValue("kestra"))
+			.password(Property.ofValue("k3stra"))
 			.name(IdUtils.create())
 			.build()
 			.run(runContextFactory.of());

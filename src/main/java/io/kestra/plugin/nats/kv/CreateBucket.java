@@ -91,7 +91,7 @@ public class CreateBucket extends NatsConnection implements RunnableTask<CreateB
         title = "The maximum number of history for a key."
     )
     @Builder.Default
-    private Property<Integer> historyPerKey = Property.of(1);
+    private Property<Integer> historyPerKey = Property.ofValue(1);
 
     @Schema(
         title = "The maximum size in bytes for this bucket."
