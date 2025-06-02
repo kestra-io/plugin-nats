@@ -69,7 +69,7 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
     private Property<String> since;
 
     @Builder.Default
-    private Property<Duration> pollDuration = Property.of(Duration.ofSeconds(2));
+    private Property<Duration> pollDuration = Property.ofValue(Duration.ofSeconds(2));
 
     @Builder.Default
     private Integer batchSize = 10;
@@ -79,7 +79,7 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
     private Property<Duration> maxDuration;
 
     @Builder.Default
-    private Property<DeliverPolicy> deliverPolicy = Property.of(DeliverPolicy.All);
+    private Property<DeliverPolicy> deliverPolicy = Property.ofValue(DeliverPolicy.All);
 
     public Output run(RunContext runContext) throws Exception {
         Connection connection = connect(runContext);
