@@ -45,8 +45,8 @@ class ProduceTest extends NatsTest {
         String subject = generateSubject();
         Produce.Output produceOutput = Produce.builder()
             .url("localhost:4222")
-            .username(Property.of("kestra"))
-            .password(Property.of("k3stra"))
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
             .subject(subject)
             .from(Map.of(
                 "headers", Map.of(SOME_HEADER_KEY, SOME_HEADER_VALUE),
@@ -57,12 +57,12 @@ class ProduceTest extends NatsTest {
 
         Consume.Output consumeOutput = Consume.builder()
             .url("localhost:4222")
-            .username(Property.of("kestra"))
-            .password(Property.of("k3stra"))
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
             .subject(subject)
-            .durableId(Property.of("produceMessage-" + UUID.randomUUID()))
-            .deliverPolicy(Property.of(DeliverPolicy.All))
-            .pollDuration(Property.of(Duration.ofSeconds(1)))
+            .durableId(Property.ofValue("produceMessage-" + UUID.randomUUID()))
+            .deliverPolicy(Property.ofValue(DeliverPolicy.All))
+            .pollDuration(Property.ofValue(Duration.ofSeconds(1)))
             .build()
             .run(runContextFactory.of());
 
@@ -84,8 +84,8 @@ class ProduceTest extends NatsTest {
         String subject = generateSubject();
         Produce.Output produceOutput = Produce.builder()
             .url("localhost:4222")
-            .username(Property.of("kestra"))
-            .password(Property.of("k3stra"))
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
             .subject(subject)
             .from(List.of(
                 Map.of(
@@ -101,12 +101,12 @@ class ProduceTest extends NatsTest {
 
         Consume.Output consumeOutput = Consume.builder()
             .url("localhost:4222")
-            .username(Property.of("kestra"))
-            .password(Property.of("k3stra"))
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
             .subject(subject)
-            .durableId(Property.of("produceMultipleMessages-" + UUID.randomUUID()))
-            .deliverPolicy(Property.of(DeliverPolicy.All))
-            .pollDuration(Property.of(Duration.ofSeconds(1)))
+            .durableId(Property.ofValue("produceMultipleMessages-" + UUID.randomUUID()))
+            .deliverPolicy(Property.ofValue(DeliverPolicy.All))
+            .pollDuration(Property.ofValue(Duration.ofSeconds(1)))
             .build()
             .run(runContextFactory.of());
 
@@ -151,8 +151,8 @@ class ProduceTest extends NatsTest {
 
         Produce.Output produceOutput = Produce.builder()
             .url("localhost:4222")
-            .username(Property.of("kestra"))
-            .password(Property.of("k3stra"))
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
             .subject(subject)
             .from(uri.toString())
             .build()
@@ -160,12 +160,12 @@ class ProduceTest extends NatsTest {
 
         Consume.Output consumeOutput = Consume.builder()
             .url("localhost:4222")
-            .username(Property.of("kestra"))
-            .password(Property.of("k3stra"))
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
             .subject(subject)
-            .durableId(Property.of("produceMultipleMessages-" + UUID.randomUUID()))
-            .deliverPolicy(Property.of(DeliverPolicy.All))
-            .pollDuration(Property.of(Duration.ofSeconds(1)))
+            .durableId(Property.ofValue("produceMultipleMessages-" + UUID.randomUUID()))
+            .deliverPolicy(Property.ofValue(DeliverPolicy.All))
+            .pollDuration(Property.ofValue(Duration.ofSeconds(1)))
             .build()
             .run(runContextFactory.of());
 
