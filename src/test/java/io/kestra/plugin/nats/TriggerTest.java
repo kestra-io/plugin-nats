@@ -58,8 +58,8 @@ class TriggerTest extends NatsTest {
     void simpleConsumeTrigger() throws Exception {
         Produce.builder()
             .url("localhost:4222")
-            .username(Property.of("kestra"))
-            .password(Property.of("k3stra"))
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
             .subject("kestra.trigger")
             .from(Map.of(
                 "headers", Map.of(SOME_HEADER_KEY, SOME_HEADER_VALUE),

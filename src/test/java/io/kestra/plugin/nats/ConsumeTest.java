@@ -67,12 +67,12 @@ class ConsumeTest extends NatsTest {
 
         Consume.Output output = Consume.builder()
             .url("localhost:4222")
-            .username(Property.of("kestra"))
-            .password(Property.of("k3stra"))
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
             .subject("kestra.consumeMessageFromSubject.>")
-            .durableId(Property.of("consumeMessageFromSubject-" + UUID.randomUUID()))
-            .deliverPolicy(Property.of(DeliverPolicy.LastPerSubject))
-            .pollDuration(Property.of(Duration.ofSeconds(1)))
+            .durableId(Property.ofValue("consumeMessageFromSubject-" + UUID.randomUUID()))
+            .deliverPolicy(Property.ofValue(DeliverPolicy.LastPerSubject))
+            .pollDuration(Property.ofValue(Duration.ofSeconds(1)))
             .batchSize(1)
             .build()
             .run(runContextFactory.of());
@@ -130,13 +130,13 @@ class ConsumeTest extends NatsTest {
 
         Consume.Output output = Consume.builder()
             .url("localhost:4222")
-            .username(Property.of("kestra"))
-            .password(Property.of("k3stra"))
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
             .subject("kestra.consumeSince.>")
-            .durableId(Property.of("consumeSince-" + UUID.randomUUID()))
-            .deliverPolicy(Property.of(DeliverPolicy.ByStartTime))
-            .pollDuration(Property.of(Duration.ofSeconds(1)))
-            .since(Property.of(messageTimestamp.get().minus(1, ChronoUnit.MILLIS).toString()))
+            .durableId(Property.ofValue("consumeSince-" + UUID.randomUUID()))
+            .deliverPolicy(Property.ofValue(DeliverPolicy.ByStartTime))
+            .pollDuration(Property.ofValue(Duration.ofSeconds(1)))
+            .since(Property.ofValue(messageTimestamp.get().minus(1, ChronoUnit.MILLIS).toString()))
             .build()
             .run(runContextFactory.of());
 
