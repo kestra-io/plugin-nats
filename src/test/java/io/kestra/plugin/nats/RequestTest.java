@@ -8,7 +8,6 @@ import io.kestra.core.utils.IdUtils;
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
 import jakarta.inject.Inject;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.io.*;
@@ -22,7 +21,6 @@ import static org.hamcrest.Matchers.*;
 
 /**
  * Tests the NATS "Request" plugin in a pure request-reply manner.
- *
  * Scenarios:
  *   1) No responder => The request times out => returns null
  *   2) With responder => The request returns the actual reply from the subscriber
@@ -48,13 +46,13 @@ class RequestTest extends NatsTest {
     void requestMessageNoResponder() throws Exception {
         String subject = generateSubject();
 
-        Map<String, Object> singleMessage = Map.of(
-            "headers", Map.of(SOME_HEADER_KEY, SOME_HEADER_VALUE),
+        Map<String, Object> from = Map.of(
+            "headers",Map.of(SOME_HEADER_KEY, SOME_HEADER_VALUE),
             "data", "Hello Kestra From Request Task"
         );
 
         // Run request with no local responder
-        var output = runRequest(subject, singleMessage, Duration.ofMillis(1000));
+        var output = runRequest(subject, from, Duration.ofMillis(1000));
         assertThat(output.getResponse(), nullValue());
     }
 
@@ -88,12 +86,12 @@ class RequestTest extends NatsTest {
             setupLocalResponder(conn, subject, "Hello from local responder!");
 
             // Now run the request
-            Map<String, Object> singleMessage = Map.of(
+            Map<String, Object> from = Map.of(
                 "headers", Map.of(SOME_HEADER_KEY, SOME_HEADER_VALUE),
                 "data", "Hello from requestWithResponder test"
             );
 
-            var output = runRequest(subject, singleMessage, Duration.ofMillis(2000));
+            var output = runRequest(subject, from, Duration.ofMillis(2000));
             assertThat(output.getResponse(), is("Hello from local responder!"));
         }
     }
@@ -120,68 +118,6 @@ class RequestTest extends NatsTest {
     }
 
     // ---------------------------------------------------------
-    // 3) LIST SCENARIOS
-    // ---------------------------------------------------------
-
-    @Test
-    void requestSingleItemListSuccess() throws Exception {
-        String subject = generateSubject();
-
-        try (Connection conn = this.natsConnection()) {
-            setupLocalResponder(conn, subject, "List-based reply");
-
-            // fromList with exactly one item, a valid Map
-            Map<String, Object> singleItem = Map.of(
-                "headers", Map.of(SOME_HEADER_KEY, SOME_HEADER_VALUE),
-                "data", "Hello from single-item list"
-            );
-
-            var output = runRequest(subject, List.of(singleItem), Duration.ofMillis(2000));
-            assertThat(output.getResponse(), is("List-based reply"));
-        }
-    }
-
-    @Test
-    void requestMultipleItemsInListShouldFail() {
-        String subject = generateSubject();
-
-        // fromList with multiple maps => should fail
-        var fromList = List.of(
-            Map.of("data", "Message 1"),
-            Map.of("data", "Message 2")
-        );
-
-        // We expect an IllegalArgumentException because it’s more than 1 item
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            runRequest(subject, fromList, Duration.ofMillis(1000));
-        });
-    }
-
-    @Test
-    void requestEmptyListShouldFail() {
-        String subject = generateSubject();
-
-        // fromList is empty => should fail
-        var fromList = List.of();
-
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            runRequest(subject, fromList, Duration.ofMillis(1000));
-        });
-    }
-
-    @Test
-    void requestSingleItemListNonMapShouldFail() {
-        String subject = generateSubject();
-
-        // fromList with exactly one item, but it's not a Map
-        var fromList = List.of("I am not a Map!");
-
-        Assertions.assertThrows(IllegalArgumentException.class, () -> {
-            runRequest(subject, fromList, Duration.ofMillis(1000));
-        });
-    }
-
-    // ---------------------------------------------------------
     // HELPER METHODS
     // ---------------------------------------------------------
 
@@ -194,9 +130,9 @@ class RequestTest extends NatsTest {
             .url("localhost:4222")
             .username(Property.of("kestra"))
             .password(Property.of("k3stra"))
-            .subject(subject)
-            .from(from)
-            .requestTimeout(timeout)
+            .subject(Property.of(subject))
+            .from(Property.of(from))
+            .requestTimeout(Property.of(timeout))
             .build()
             .run(runContextFactory.of());
     }

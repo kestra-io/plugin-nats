@@ -2,7 +2,7 @@ package io.kestra.plugin.nats;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.nats.client.Connection;
@@ -13,7 +13,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.io.InputStream;
 import java.net.URI;
@@ -58,10 +57,8 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
     @Schema(
         title = "Subject to send the request to"
     )
-    @PluginProperty(dynamic = true)
-    @NotBlank
     @NotNull
-    private String subject;
+    private Property<String> subject;
 
     @Schema(
         title = "Source of message(s) for the request",
@@ -74,15 +71,15 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
         """
     )
     @NotNull
-    @PluginProperty(dynamic = true)
-    private Object from;
+    private Property<Object> from;
 
     @Schema(
         title = "Timeout in milliseconds to wait for a response.",
         description = "Defaults to 5000 ms."
     )
     @Builder.Default
-    private Duration requestTimeout = Duration.ofMillis(5000);
+    @NotNull
+    private Property<Duration> requestTimeout = Property.of(Duration.ofMillis(5000));
 
     @Override
     public Output run(RunContext runContext) throws Exception {
@@ -90,16 +87,16 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
         Connection connection = this.connect(runContext);
 
         // 2) Interpolate the subject (if it has placeholders like {{ ... }})
-        String renderedSubject = runContext.render(this.subject);
+        String renderedSubject = runContext.render(this.subject).as(String.class).orElse(null);
 
         // 3) Retrieve a single "message map" (headers + data)
-        Map<String, Object> messageMap = retrieveSingleMessage(runContext);
+        Map<String, Object> messageMap = retrieveMessage(runContext);
 
         // 4) Build the NATS Message
         Message natsMessage = buildRequestMessage(renderedSubject, messageMap);
 
         // 5) Execute request-reply with the configured timeout
-        Duration timeoutDuration = this.requestTimeout;
+        Duration timeoutDuration = runContext.render(this.requestTimeout).as(Duration.class).orElse(null);
         Message reply = connection.request(natsMessage, timeoutDuration);
 
         // 6) Convert the reply (if any) to a UTF-8 string
@@ -113,15 +110,14 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> retrieveSingleMessage(RunContext runContext) throws Exception {
-        // CASE 1: "from" is a String
-        if (this.from instanceof String fromStr) {
-            // Render the string (in case it has {{ }} placeholders)
-            String renderedStr = runContext.render(fromStr);
+    private Map<String, Object> retrieveMessage(RunContext runContext) throws Exception {
+        Object from = runContext.render(this.from).as(Object.class).orElse(null);
 
+        // CASE 1: "from" is a String
+        if (from instanceof String fromStr) {
             // If it starts with kestra://, read entire file content into data
-            if (renderedStr.startsWith("kestra://")) {
-                URI fromUri = new URI(renderedStr);
+            if (fromStr.startsWith("kestra://")) {
+                URI fromUri = new URI(fromStr);
 
                 if (!"kestra".equalsIgnoreCase(fromUri.getScheme())) {
                     throw new IllegalArgumentException("Invalid 'from': must be a kestra:// URI or a plain string.");
@@ -133,30 +129,18 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
                 }
             } else {
                 // Otherwise, treat the string itself as data
-                return Map.of("data", renderedStr);
+                return Map.of("data", fromStr);
             }
         }
 
-        // CASE 2: "from" is a List
-        if (this.from instanceof List<?> fromList) {
-            if (fromList.size() != 1) {
-                throw new IllegalArgumentException("'from' list must contain exactly one item for request-reply.");
-            }
-            Object single = fromList.get(0);
-            if (!(single instanceof Map<?, ?>)) {
-                throw new IllegalArgumentException("'from' list's single item must be a map.");
-            }
-            return (Map<String, Object>) single;
-        }
-
-        // CASE 3: "from" is a Map
-        if (this.from instanceof Map<?, ?> fromMap) {
+        // CASE 2: "from" is a Map
+        if (from instanceof Map<?, ?> fromMap) {
             return (Map<String, Object>) fromMap;
         }
 
-        // CASE 4: Not supported
+        // CASE 3: Not supported
         throw new IllegalArgumentException(
-            "Unsupported 'from' type. Must be: a String, a Map, or a single-item List<Map>."
+            "Unsupported 'from' type. Must be: a String, or a Map. Got: " + (from != null ? from.getClass().getName() : "null")
         );
     }
 
