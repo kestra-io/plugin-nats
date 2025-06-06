@@ -1,5 +1,6 @@
 package io.kestra.plugin.nats;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.property.Property;
@@ -12,6 +13,7 @@ import io.nats.client.impl.NatsMessage;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import jakarta.validation.constraints.NotNull;
 import java.io.InputStream;
@@ -147,7 +149,7 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
     }
 
     @SuppressWarnings("unchecked")
-    private Message buildRequestMessage(String subject, Map<String, Object> msgMap) {
+    private Message buildRequestMessage(String subject, Map<String, Object> msgMap) throws JsonProcessingException {
         // Build NATS headers if present
         Headers headers = new Headers();
         Object headersObj = msgMap.getOrDefault("headers", Collections.emptyMap());
@@ -168,7 +170,8 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
         if (msgMap.get("data") instanceof String dataStr) {
             data = dataStr;
         } else {
-            data = JsonUtils.toJson(msgMap.get("data"));
+            ObjectMapper objectMapper = new ObjectMapper();
+            data = objectMapper.writeValueAsString(msgMap.get("data"));
         }
 
         return NatsMessage.builder()
