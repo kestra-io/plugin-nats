@@ -89,9 +89,10 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
 
             // 2) Retrieve a single "message map" (headers + data)
             Map<String, Object> messageMap = retrieveMessage(runContext);
+            Map<String, Object> renderedMessage = runContext.render(messageMap);
 
             // 3) Build the NATS Message
-            Message natsMessage = buildRequestMessage(renderedSubject, messageMap);
+            Message natsMessage = buildRequestMessage(renderedSubject, renderedMessage);
 
             // 4) Execute request-reply with the configured timeout
             Duration timeoutDuration = runContext.render(this.requestTimeout).as(Duration.class).orElse(null);
