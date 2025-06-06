@@ -66,7 +66,6 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
             If this is:
             - A plain string => entire string is the data
             - A kestra:// URI => entire file content is read into the data
-            - A list with exactly one item => that item must be a map with optional headers + data
             - A map => optional 'headers' + 'data' keys
         """
     )
