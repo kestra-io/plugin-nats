@@ -164,8 +164,13 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
             });
         }
 
-        // Data defaults to an empty string if not present
-        String data = String.valueOf(msgMap.getOrDefault("data", ""));
+        String data;
+
+        if (msgMap.get("data") instanceof String dataStr) {
+            data = dataStr;
+        } else {
+            data = JsonUtils.toJson(msgMap.get("data"));
+        }
 
         return NatsMessage.builder()
             .subject(subject)
