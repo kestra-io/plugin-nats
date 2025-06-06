@@ -35,7 +35,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Produce messages to a NATS subject on a NATS server."
+    title = "Produce messages in a NATS subject on a NATS server."
 )
 @Plugin(
     examples = {

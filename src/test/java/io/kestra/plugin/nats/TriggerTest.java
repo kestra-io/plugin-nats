@@ -8,6 +8,8 @@ import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.runners.Worker;
 import io.kestra.core.schedulers.AbstractScheduler;
+import io.kestra.core.storages.StorageInterface;
+import io.kestra.core.tenant.TenantService;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.jdbc.runner.JdbcScheduler;
@@ -48,6 +50,10 @@ class TriggerTest extends NatsTest {
     @Inject
     private RunContextFactory runContextFactory;
 
+    public TriggerTest(StorageInterface storageInterface) {
+        super(storageInterface);
+    }
+
     @Test
     void simpleConsumeTrigger() throws Exception {
         Produce.builder()
@@ -65,7 +71,7 @@ class TriggerTest extends NatsTest {
         Execution execution = triggerFlow();
 
 
-        BufferedReader inputStream = new BufferedReader(new InputStreamReader(storageInterface.get(null, null, URI.create((String) execution.getTrigger().getVariables().get("uri")))));
+        BufferedReader inputStream = new BufferedReader(new InputStreamReader(storageInterface.get(TenantService.MAIN_TENANT, null, URI.create((String) execution.getTrigger().getVariables().get("uri")))));
         List<Map<String, Object>> result = new ArrayList<>();
         FileSerde.reader(inputStream, r -> result.add((Map<String, Object>) r));
 

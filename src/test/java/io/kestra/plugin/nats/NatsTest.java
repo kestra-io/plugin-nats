@@ -6,6 +6,7 @@ import io.kestra.core.junit.annotations.KestraTest;
 import io.nats.client.Connection;
 import io.nats.client.Options;
 import io.nats.client.Nats;
+import io.kestra.core.tenant.TenantService;
 import jakarta.inject.Inject;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -21,8 +22,12 @@ import java.util.Map;
 
 @KestraTest
 class NatsTest {
-    @Inject
-    protected StorageInterface storageInterface;
+    protected final StorageInterface storageInterface;
+
+    @Inject // Micronaut supports constructor injection
+    public NatsTest(StorageInterface storageInterface) {
+        this.storageInterface = storageInterface;
+    }
 
     protected Connection connection;
 
@@ -34,7 +39,7 @@ class NatsTest {
     }
 
     protected List<Map<String, Object>> toMessages(Consume.Output output) throws IOException {
-        BufferedReader inputStream = new BufferedReader(new InputStreamReader(storageInterface.get(null, null, output.getUri())));
+        BufferedReader inputStream = new BufferedReader(new InputStreamReader(storageInterface.get(TenantService.MAIN_TENANT, null, output.getUri())));
         List<Map<String, Object>> result = new ArrayList<>();
         FileSerde.reader(inputStream, r -> result.add((Map<String, Object>) r));
         return result;

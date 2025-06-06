@@ -32,7 +32,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Gets a value from a NATS Key/Value bucket."
+    title = "Get a value from a NATS Key/Value bucket."
 )
 @Plugin(
     examples = {
