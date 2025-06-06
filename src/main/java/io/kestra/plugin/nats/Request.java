@@ -83,30 +83,32 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
 
     @Override
     public Output run(RunContext runContext) throws Exception {
-        // 1) Connect to NATS
-        Connection connection = this.connect(runContext);
+        try (Connection connection = this.connect(runContext)) {
+            // 2) Interpolate the subject (if it has placeholders like {{ ... }})
+            String renderedSubject = runContext.render(this.subject).as(String.class).orElse(null);
 
-        // 2) Interpolate the subject (if it has placeholders like {{ ... }})
-        String renderedSubject = runContext.render(this.subject).as(String.class).orElse(null);
+            // 3) Retrieve a single "message map" (headers + data)
+            Map<String, Object> messageMap = retrieveMessage(runContext);
 
-        // 3) Retrieve a single "message map" (headers + data)
-        Map<String, Object> messageMap = retrieveMessage(runContext);
+            // 4) Build the NATS Message
+            Message natsMessage = buildRequestMessage(renderedSubject, messageMap);
 
-        // 4) Build the NATS Message
-        Message natsMessage = buildRequestMessage(renderedSubject, messageMap);
+            // 5) Execute request-reply with the configured timeout
+            Duration timeoutDuration = runContext.render(this.requestTimeout).as(Duration.class).orElse(null);
+            Message reply = connection.request(natsMessage, timeoutDuration);
 
-        // 5) Execute request-reply with the configured timeout
-        Duration timeoutDuration = runContext.render(this.requestTimeout).as(Duration.class).orElse(null);
-        Message reply = connection.request(natsMessage, timeoutDuration);
+            // 6) Convert the reply (if any) to a UTF-8 string
+            String response = (reply == null) ? null : new String(reply.getData(), StandardCharsets.UTF_8);
 
-        // 6) Convert the reply (if any) to a UTF-8 string
-        String response = (reply == null) ? null : new String(reply.getData(), StandardCharsets.UTF_8);
+            connection.close();
 
-        connection.close();
-
-        return Output.builder()
-            .response(response)
-            .build();
+            return Output.builder()
+                .response(response)
+                .build();
+        } catch (Exception e) {
+            runContext.logger().error("Unable to send request to NATS", e);
+            throw e;
+        }
     }
 
     @SuppressWarnings("unchecked")
