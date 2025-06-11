@@ -25,8 +25,8 @@ public class CreateBucketTest {
 
 		CreateBucket.Output bucketOutput = CreateBucket.builder()
 			.url("localhost:4222")
-			.username(Property.of("kestra"))
-			.password(Property.of("k3stra"))
+			.username(Property.ofValue("kestra"))
+			.password(Property.ofValue("k3stra"))
 			.name(bucketName)
 			.build()
 			.run(runContextFactory.of());
@@ -49,13 +49,13 @@ public class CreateBucketTest {
 
 		CreateBucket.Output bucketOutput = CreateBucket.builder()
 			.url("localhost:4222")
-			.username(Property.of("kestra"))
-			.password(Property.of("k3stra"))
+			.username(Property.ofValue("kestra"))
+			.password(Property.ofValue("k3stra"))
 			.name(bucketName)
 			.description("My Test Bucket")
-			.bucketSize(Property.of(1024L))
-			.valueSize(Property.of(1024L))
-			.metadata(Property.of(Map.of("key1", "value1", "key2", "value2")))
+			.bucketSize(Property.ofValue(1024L))
+			.valueSize(Property.ofValue(1024L))
+			.metadata(Property.ofValue(Map.of("key1", "value1", "key2", "value2")))
 			.build()
 			.run(runContextFactory.of());
 

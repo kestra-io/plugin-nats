@@ -65,13 +65,13 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     private Property<String> durableId;
     private Property<String> since;
     @Builder.Default
-    private Property<Duration> pollDuration = Property.of(Duration.ofSeconds(2));
+    private Property<Duration> pollDuration = Property.ofValue(Duration.ofSeconds(2));
     @Builder.Default
     private Integer batchSize = 10;
     private Property<Integer> maxRecords;
     private Property<Duration> maxDuration;
     @Builder.Default
-    private Property<DeliverPolicy> deliverPolicy = Property.of(DeliverPolicy.All);
+    private Property<DeliverPolicy> deliverPolicy = Property.ofValue(DeliverPolicy.All);
     @Builder.Default
     private final Duration interval = Duration.ofSeconds(60);
 

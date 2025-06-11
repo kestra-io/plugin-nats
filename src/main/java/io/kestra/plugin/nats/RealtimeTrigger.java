@@ -94,7 +94,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     private Integer batchSize = 10;
 
     @Builder.Default
-    private Property<DeliverPolicy> deliverPolicy = Property.of(DeliverPolicy.All);
+    private Property<DeliverPolicy> deliverPolicy = Property.ofValue(DeliverPolicy.All);
 
     @Builder.Default
     @Getter(AccessLevel.NONE)
