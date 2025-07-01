@@ -17,6 +17,7 @@ import lombok.experimental.SuperBuilder;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.security.NoSuchAlgorithmException;
 
 @SuperBuilder
 @ToString
@@ -34,7 +35,7 @@ public abstract class NatsConnection extends Task implements NatsConnectionInter
 
     protected Property<String> creds;
 
-    protected Connection connect(RunContext runContext) throws IOException, InterruptedException, IllegalVariableEvaluationException {
+    protected Connection connect(RunContext runContext) throws IOException, InterruptedException, IllegalVariableEvaluationException, NoSuchAlgorithmException {
         Options.Builder connectOptions = Options.builder().server(runContext.render(url));
         if (username != null && password != null) {
             connectOptions.userInfo(runContext.render(username).as(String.class).orElseThrow(),
@@ -51,7 +52,7 @@ public abstract class NatsConnection extends Task implements NatsConnectionInter
                 .toFile();
 
             AuthHandler ah = Nats.credentials(credsFiles.getAbsolutePath());
-            connectOptions.authHandler(ah);
+            connectOptions.authHandler(ah).secure();
         }
 
         return Nats.connect(connectOptions.build());
