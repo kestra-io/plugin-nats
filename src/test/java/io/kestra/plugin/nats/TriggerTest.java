@@ -7,14 +7,15 @@ import io.kestra.core.queues.QueueInterface;
 import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.runners.Worker;
-import io.kestra.core.schedulers.AbstractScheduler;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.tenant.TenantService;
+import io.kestra.scheduler.AbstractScheduler;
 import io.kestra.core.utils.IdUtils;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.jdbc.runner.JdbcScheduler;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.services.FlowListenersInterface;
+import io.kestra.worker.DefaultWorker;
 import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
@@ -25,10 +26,7 @@ import reactor.core.publisher.Flux;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -91,7 +89,7 @@ class TriggerTest extends NatsTest {
         CountDownLatch queueCount = new CountDownLatch(1);
 
         // scheduler
-        try (Worker worker = applicationContext.createBean(Worker.class, IdUtils.create(), 8, null)) {
+        try (DefaultWorker worker = applicationContext.createBean(DefaultWorker.class, UUID.randomUUID().toString(), 8, null)) {
             try (
                 AbstractScheduler scheduler = new JdbcScheduler(
                     this.applicationContext,
