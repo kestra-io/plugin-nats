@@ -4,9 +4,12 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
+import io.kestra.core.tenant.TenantService;
 import io.kestra.core.utils.IdUtils;
 import io.nats.client.Connection;
 import io.nats.client.Dispatcher;
+import io.nats.client.Nats;
+import io.nats.client.Options;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
@@ -19,16 +22,8 @@ import java.util.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
-/**
- * Tests the NATS "Request" plugin in a pure request-reply manner.
- * Scenarios:
- *   1) No responder => The request times out => returns null
- *   2) With responder => The request returns the actual reply from the subscriber
- *   3) Reading the request from a file in Kestra's internal storage => entire file => data
- *   4) List-based scenarios => single item vs. multiple items
- */
 class RequestTest extends NatsTest {
-    private static final String BASE_SUBJECT = "kestra.request";
+    private static final String BASE_SUBJECT = "_unit.request.reply";
     public static final String SOME_HEADER_KEY = "someHeaderKey";
     public static final String SOME_HEADER_VALUE = "someHeaderValue";
 
@@ -38,9 +33,9 @@ class RequestTest extends NatsTest {
     @Inject
     protected StorageInterface storageInterface;
 
-    // ---------------------------------------------------------
-    // 1) NO RESPONDER => returns null
-    // ---------------------------------------------------------
+    public RequestTest(StorageInterface storageInterface) {
+        super(storageInterface);
+    }
 
     @Test
     void requestMessageNoResponder() throws Exception {
@@ -73,16 +68,12 @@ class RequestTest extends NatsTest {
         assertThat(output.getResponse(), nullValue());
     }
 
-    // ---------------------------------------------------------
-    // 2) WITH RESPONDER => returns actual response
-    // ---------------------------------------------------------
-
-    @Test
+   @Test
     void requestMessageWithResponder() throws Exception {
         String subject = generateSubject();
 
         // ephemeral subscription that replies "Hello from local responder!"
-        try (Connection conn = this.natsConnection()) {
+        try (Connection conn = Nats.connect(Options.builder().server("localhost:4222").userInfo("kestra", "k3stra").build());) {
             setupLocalResponder(conn, subject, "Hello from local responder!");
 
             // Now run the request
@@ -105,7 +96,7 @@ class RequestTest extends NatsTest {
         String fileContent = "Request data from file";
 
         // ephemeral subscription that replies "Response from file-based request"
-        try (Connection conn = this.natsConnection()) {
+        try (Connection conn = Nats.connect(Options.builder().server("localhost:4222").userInfo("kestra", "k3stra").build());) {
             setupLocalResponder(conn, subject, "Response from file-based request");
 
             // Put text file in storage => produce a kestra:// URI
@@ -117,10 +108,6 @@ class RequestTest extends NatsTest {
         }
     }
 
-    // ---------------------------------------------------------
-    // HELPER METHODS
-    // ---------------------------------------------------------
-
     /**
      * A helper to run the Request plugin for a given subject, "from" source, and timeout.
      * Returns the plugin's Output.
@@ -128,11 +115,11 @@ class RequestTest extends NatsTest {
     private Request.Output runRequest(String subject, Object from, Duration timeout) throws Exception {
         return Request.builder()
             .url("localhost:4222")
-            .username(Property.of("kestra"))
-            .password(Property.of("k3stra"))
-            .subject(Property.of(subject))
-            .from(Property.of(from))
-            .requestTimeout(Property.of(timeout))
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
+            .subject(Property.ofValue(subject))
+            .from(Property.ofValue(from))
+            .requestTimeout(Property.ofValue(timeout))
             .build()
             .run(runContextFactory.of());
     }
@@ -150,12 +137,7 @@ class RequestTest extends NatsTest {
         }
 
         // Upload into Kestra storage => returns a kestra:// URI
-        return storageInterface.put(
-            null,
-            null,
-            URI.create("/" + IdUtils.create() + ".txt"),
-            new FileInputStream(tempFile)
-        );
+        return storageInterface.put(TenantService.MAIN_TENANT, null, URI.create("/" + IdUtils.create() + ".txt"), new FileInputStream(tempFile));
     }
 
     /**

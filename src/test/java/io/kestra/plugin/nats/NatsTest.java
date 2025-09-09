@@ -3,10 +3,13 @@ package io.kestra.plugin.nats;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.junit.annotations.KestraTest;
+import io.kestra.core.tenant.TenantService;
+import io.nats.client.Connection;
 import jakarta.inject.Inject;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.hamcrest.Matcher;
+import org.junit.jupiter.api.AfterEach;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -22,15 +25,6 @@ class NatsTest {
     @Inject // Micronaut supports constructor injection
     public NatsTest(StorageInterface storageInterface) {
         this.storageInterface = storageInterface;
-    }
-
-    protected Connection connection;
-
-    @AfterEach
-    void tearDown() throws Exception {
-        if (connection != null && connection.getStatus() == Connection.Status.CONNECTED) {
-            connection.close();
-        }
     }
 
     protected List<Map<String, Object>> toMessages(Consume.Output output) throws IOException {
@@ -56,15 +50,5 @@ class NatsTest {
         public void describeTo(Description description) {
             description.appendDescriptionOf(mapMatcher);
         }
-    }
-
-    protected Connection natsConnection() throws Exception {
-        Options options = new Options.Builder()
-            .server("nats://localhost:4222")
-            .userInfo("kestra", "k3stra")
-            .build();
-
-        this.connection = Nats.connect(options);
-        return this.connection;
     }
 }

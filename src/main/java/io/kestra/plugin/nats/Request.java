@@ -80,7 +80,7 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
     )
     @Builder.Default
     @NotNull
-    private Property<Duration> requestTimeout = Property.of(Duration.ofMillis(5000));
+    private Property<Duration> requestTimeout = Property.ofValue(Duration.ofMillis(5000));
 
     @Override
     public Output run(RunContext runContext) throws Exception {
