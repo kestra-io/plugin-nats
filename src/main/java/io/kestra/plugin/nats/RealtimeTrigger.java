@@ -112,6 +112,8 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
             .url(url)
             .username(username)
             .password(password)
+            .creds(creds)
+            .token(token)
             .subject(subject)
             .durableId(durableId)
             .since(since)
