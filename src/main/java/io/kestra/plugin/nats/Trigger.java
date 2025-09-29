@@ -86,6 +86,8 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .url(url)
             .username(username)
             .password(password)
+            .creds(creds)
+            .token(token)
             .subject(subject)
             .durableId(durableId)
             .since(since)
