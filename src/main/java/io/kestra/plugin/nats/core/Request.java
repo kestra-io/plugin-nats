@@ -1,4 +1,4 @@
-package io.kestra.plugin.nats;
+package io.kestra.plugin.nats.core;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.kestra.core.models.annotations.Example;
@@ -7,7 +7,7 @@ import io.kestra.core.models.property.Data;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
-import io.kestra.core.serializers.JacksonMapper;
+import io.kestra.plugin.nats.NatsConnection;
 import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.impl.Headers;
@@ -42,7 +42,7 @@ import java.util.Map;
 
                 tasks:
                   - id: request
-                    type: io.kestra.plugin.nats.Request
+                    type: io.kestra.plugin.nats.core.Request
                     url: nats://localhost:4222
                     username: nats_user
                     password: nats_password

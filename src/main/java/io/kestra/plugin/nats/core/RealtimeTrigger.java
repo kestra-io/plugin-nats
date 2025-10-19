@@ -1,4 +1,4 @@
-package io.kestra.plugin.nats;
+package io.kestra.plugin.nats.core;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -11,10 +11,13 @@ import io.kestra.core.models.triggers.TriggerContext;
 import io.kestra.core.models.triggers.TriggerOutput;
 import io.kestra.core.models.triggers.TriggerService;
 import io.kestra.core.runners.RunContext;
+import io.nats.client.AuthHandler;
 import io.nats.client.Connection;
 import io.nats.client.JetStreamOptions;
 import io.nats.client.JetStreamSubscription;
 import io.nats.client.Message;
+import io.nats.client.Nats;
+import io.nats.client.Options;
 import io.nats.client.PullSubscribeOptions;
 import io.nats.client.api.AckPolicy;
 import io.nats.client.api.ConsumerConfiguration;
@@ -30,6 +33,8 @@ import lombok.experimental.SuperBuilder;
 import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 
+import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.Collections;
@@ -49,7 +54,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @NoArgsConstructor
 @Schema(
     title = "Trigger a flow on message consumption in real-time from a NATS subject on a JetStream-enabled NATS server.",
-    description = "If you would like to consume multiple messages processed within a given time frame and process them in batch, you can use the [io.kestra.plugin.nats.Trigger](https://kestra.io/plugins/plugin-nats/triggers/io.kestra.plugin.nats.trigger) instead."
+    description = "If you would like to consume multiple messages processed within a given time frame and process them in batch, you can use the [io.kestra.plugin.nats.core.Trigger](https://kestra.io/plugins/plugin-nats/triggers/io.kestra.plugin.nats.core.trigger) instead."
 )
 @Plugin(
     examples = {
@@ -68,7 +73,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 
                 triggers:
                   - id: watch
-                    type: io.kestra.plugin.nats.RealtimeTrigger
+                    type: io.kestra.plugin.nats.core.RealtimeTrigger
                     url: nats://localhost:4222
                     username: nats_user
                     password: nats_password
@@ -135,7 +140,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
             .orElse(null);
 
         return Flux.create(emitter -> {
-            try (Connection connection = task.connect(runContext)) {
+            try (Connection connection = createConnection(runContext)) {
                 // create options
                 PullSubscribeOptions options = PullSubscribeOptions.builder()
                     .configuration(ConsumerConfiguration.builder()
@@ -222,5 +227,28 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
                 Thread.currentThread().interrupt();
             }
         }
+    }
+
+    private Connection createConnection(RunContext runContext) throws Exception {
+        Options.Builder connectOptions = Options.builder().server(runContext.render(url));
+        if (username != null && password != null) {
+            connectOptions.userInfo(runContext.render(username).as(String.class).orElseThrow(),
+                runContext.render(password).as(String.class).orElseThrow());
+        }
+
+        if (token != null) {
+            connectOptions.token(runContext.render(token).as(String.class).orElseThrow().toCharArray());
+        }
+
+        if (this.creds != null) {
+            File credsFiles = runContext.workingDir()
+                .createTempFile(runContext.render(this.creds).as(String.class).orElseThrow().getBytes(StandardCharsets.UTF_8), "creds")
+                .toFile();
+
+            AuthHandler ah = Nats.credentials(credsFiles.getAbsolutePath());
+            connectOptions.authHandler(ah).secure();
+        }
+
+        return Nats.connect(connectOptions.build());
     }
 }

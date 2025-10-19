@@ -7,6 +7,8 @@ import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.tenant.TenantService;
 import io.kestra.core.utils.IdUtils;
+import io.kestra.plugin.nats.core.Consume;
+import io.kestra.plugin.nats.core.Produce;
 import io.nats.client.api.DeliverPolicy;
 import jakarta.inject.Inject;
 import org.hamcrest.Matchers;

@@ -1,4 +1,4 @@
-package io.kestra.plugin.nats;
+package io.kestra.plugin.nats.core;
 
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;

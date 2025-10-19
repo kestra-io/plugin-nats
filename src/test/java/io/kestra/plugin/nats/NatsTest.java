@@ -4,6 +4,7 @@ import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.tenant.TenantService;
+import io.kestra.plugin.nats.core.Consume;
 import io.nats.client.Connection;
 import jakarta.inject.Inject;
 import org.hamcrest.BaseMatcher;

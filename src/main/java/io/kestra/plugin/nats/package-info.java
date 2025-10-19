@@ -1,7 +1,8 @@
-@PluginSubGroup(
-    description = "This sub-group of plugins contains tasks for using Nats",
-    categories = PluginSubGroup.PluginCategory.MESSAGING
-)
+/**
+ * NATS plugin for Kestra.
+ * 
+ * This plugin provides integration with NATS messaging system, organized into sub-packages:
+ * - core: Core NATS messaging tasks and triggers
+ * - kv: NATS key-value storage operations
+ */
 package io.kestra.plugin.nats;
-
-import io.kestra.core.models.annotations.PluginSubGroup;
