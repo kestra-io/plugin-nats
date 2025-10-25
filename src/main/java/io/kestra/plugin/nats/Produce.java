@@ -4,6 +4,7 @@ import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Data;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
@@ -99,7 +100,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         ),
     }
 )
-public class Produce extends NatsConnection implements RunnableTask<Produce.Output> {
+public class Produce extends NatsConnection implements RunnableTask<Produce.Output>, Data.From {
+
     @Schema(
         title = "Subject to produce message to"
     )
@@ -109,24 +111,22 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
     private String subject;
 
     @Schema(
-        title = "Source of message(s) to send",
-        description = "Can be an internal storage uri, a map or a list." +
-            "with the following format: headers, data",
+        title = Data.From.TITLE,
+        description = Data.From.DESCRIPTION,
         anyOf = {String.class, List.class, Map.class}
     )
+    @PluginProperty(dynamic = true, internalStorageURI = true)
     @NotNull
-    @PluginProperty(dynamic = true)
     private Object from;
 
     public Output run(RunContext runContext) throws Exception {
         Connection connection = connect(runContext);
-
         int messagesCount;
 
         if (this.from instanceof String || this.from instanceof List) {
             if (this.from instanceof String fromStr) {
                 URI from = new URI(runContext.render(fromStr));
-                if (!from.getScheme().equals("kestra")) {
+                if (!"kestra".equals(from.getScheme())) {
                     throw new Exception("Invalid from parameter, must be a Kestra internal storage URI");
                 }
 
@@ -151,10 +151,12 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
     }
 
     private Integer publish(RunContext runContext, Connection connection, Flux<Object> messagesFlowable) throws IllegalVariableEvaluationException {
-        return messagesFlowable.map(throwFunction(object -> {
+        return messagesFlowable
+            .map(throwFunction(object -> {
                 connection.publish(this.producerMessage(runContext.render(this.subject), runContext.render((Map<String, Object>) object)));
                 return 1;
-            })).reduce(Integer::sum)
+            }))
+            .reduce(Integer::sum)
             .block();
     }
 
