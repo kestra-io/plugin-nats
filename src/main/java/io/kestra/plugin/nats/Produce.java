@@ -4,6 +4,7 @@ import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
+import io.kestra.core.models.property.Data;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
@@ -99,7 +100,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         ),
     }
 )
-public class Produce extends NatsConnection implements RunnableTask<Produce.Output> {
+public class Produce extends NatsConnection implements RunnableTask<Produce.Output>, Data.from {
     @Schema(
         title = "Subject to produce message to"
     )
@@ -121,26 +122,21 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
     public Output run(RunContext runContext) throws Exception {
         Connection connection = connect(runContext);
 
-        int messagesCount;
-
-        if (this.from instanceof String || this.from instanceof List) {
-            if (this.from instanceof String fromStr) {
-                URI from = new URI(runContext.render(fromStr));
-                if (!from.getScheme().equals("kestra")) {
-                    throw new Exception("Invalid from parameter, must be a Kestra internal storage URI");
-                }
-
-                try (BufferedReader inputStream = new BufferedReader(new InputStreamReader(runContext.storage().getFile(from)))) {
-                    messagesCount = publish(runContext, connection, FileSerde.readAll(inputStream));
-                }
-            } else {
-                messagesCount = publish(runContext, connection, Flux.fromIterable(((List<?>) this.from)));
-            }
-
-        } else {
-            connection.publish(this.producerMessage(runContext.render(this.subject), runContext.render((Map<String, Object>) this.from)));
-            messagesCount = 1;
-        }
+        Flux<Object> messagesFlowable = Data.from(this.from).read(runContext);
++
++       int messagesCount = messagesFlowable
++            .map(throwFunction(object -> {
++                connection.publish(
++                    this.producerMessage(
++                        runContext.render(this.subject),
++                        runContext.render((Map<String, Object>) object)
++                    )
++                );
++                return 1;
++            }))
++            .reduce(Integer::sum)
++            .blockOptional()
++            .orElse(0);
 
         connection.flushBuffer();
         connection.close();
@@ -178,7 +174,7 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
     @Builder
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
-        @io.swagger.v3.oas.annotations.media.Schema(
+        @Schema(
             title = "Number of messages produced"
         )
         private final Integer messagesCount;
