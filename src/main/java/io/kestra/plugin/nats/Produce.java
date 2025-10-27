@@ -124,7 +124,7 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
 
         Flux<Object> messagesFlowable = Data.from(this.from).read(runContext);
 +
-+       int messagesCount = messagesFlowable
++       int messagesCount = Data.from(this.from).read(runContext)
 +            .map(throwFunction(object -> {
 +                connection.publish(
 +                    this.producerMessage(
