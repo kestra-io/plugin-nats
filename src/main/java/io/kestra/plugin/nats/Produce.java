@@ -100,7 +100,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         ),
     }
 )
-public class Produce extends NatsConnection implements RunnableTask<Produce.Output>, Data.from {
+public class Produce extends NatsConnection implements RunnableTask<Produce.Output>, Data.From {
     @Schema(
         title = "Subject to produce message to"
     )
