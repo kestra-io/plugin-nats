@@ -3,24 +3,25 @@ package io.kestra.plugin.nats;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.property.Data;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
+import io.kestra.core.serializers.JacksonMapper;
 import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.NatsMessage;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
-import jakarta.validation.constraints.NotNull;
-import java.io.InputStream;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
 
 @SuperBuilder
 @ToString
@@ -55,7 +56,7 @@ import java.util.*;
         )
     }
 )
-public class Request extends NatsConnection implements RunnableTask<Request.Output> {
+public class Request extends NatsConnection implements RunnableTask<Request.Output>, Data.From {
     @Schema(
         title = "Subject to send the request to"
     )
@@ -63,16 +64,11 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
     private Property<String> subject;
 
     @Schema(
-        title = "Source of message(s) for the request",
-        description = """
-            If this is:
-            - A plain string => entire string is the data
-            - A kestra:// URI => entire file content is read into the data
-            - A map => optional 'headers' + 'data' keys
-        """
+        title = io.kestra.core.models.property.Data.From.TITLE,
+        description = io.kestra.core.models.property.Data.From.DESCRIPTION
     )
     @NotNull
-    private Property<Object> from;
+    private Object from;
 
     @Schema(
         title = "Timeout in milliseconds to wait for a response.",
@@ -90,10 +86,9 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
 
             // 2) Retrieve a single "message map" (headers + data)
             Map<String, Object> messageMap = retrieveMessage(runContext);
-            Map<String, Object> renderedMessage = runContext.render(messageMap);
 
             // 3) Build the NATS Message
-            Message natsMessage = buildRequestMessage(renderedSubject, renderedMessage);
+            Message natsMessage = buildRequestMessage(renderedSubject, messageMap);
 
             // 4) Execute request-reply with the configured timeout
             Duration timeoutDuration = runContext.render(this.requestTimeout).as(Duration.class).orElse(null);
@@ -113,46 +108,15 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
         }
     }
 
-    @SuppressWarnings("unchecked")
     private Map<String, Object> retrieveMessage(RunContext runContext) throws Exception {
-        Object from = runContext.render(this.from).as(Object.class).orElse(null);
-
-        // CASE 1: "from" is a String
-        if (from instanceof String fromStr) {
-            // If it starts with kestra://, read entire file content into data
-            if (fromStr.startsWith("kestra://")) {
-                URI fromUri = new URI(fromStr);
-
-                if (!"kestra".equalsIgnoreCase(fromUri.getScheme())) {
-                    throw new IllegalArgumentException("Invalid 'from': must be a kestra:// URI or a plain string.");
-                }
-
-                try (InputStream is = runContext.storage().getFile(fromUri)) {
-                    String content = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-                    return Map.of("data", content);
-                }
-            } else {
-                // Otherwise, treat the string itself as data
-                return Map.of("data", fromStr);
-            }
-        }
-
-        // CASE 2: "from" is a Map
-        if (from instanceof Map<?, ?> fromMap) {
-            return (Map<String, Object>) fromMap;
-        }
-
-        // CASE 3: Not supported
-        throw new IllegalArgumentException(
-            "Unsupported 'from' type. Must be: a String, or a Map. Got: " + (from != null ? from.getClass().getName() : "null")
-        );
+        return Data.from(this.from).read(runContext).blockFirst();
     }
 
     @SuppressWarnings("unchecked")
-    private Message buildRequestMessage(String subject, Map<String, Object> msgMap) throws JsonProcessingException {
+    private Message buildRequestMessage(String subject, Map<String, Object> messageMap) throws JsonProcessingException {
         // Build NATS headers if present
         Headers headers = new Headers();
-        Object headersObj = msgMap.getOrDefault("headers", Collections.emptyMap());
+        Object headersObj = messageMap.getOrDefault("headers", Collections.emptyMap());
         if (headersObj instanceof Map<?, ?> mapHeaders) {
             mapHeaders.forEach((key, value) -> {
                 if (value instanceof Collection<?> multiValues) {
@@ -167,11 +131,10 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
 
         String data;
 
-        if (msgMap.get("data") instanceof String dataStr) {
+        if (messageMap.get("data") instanceof String dataStr) {
             data = dataStr;
         } else {
-            ObjectMapper objectMapper = new ObjectMapper();
-            data = objectMapper.writeValueAsString(msgMap.get("data"));
+            data = JacksonMapper.ofJson().writeValueAsString(messageMap.get("data"));
         }
 
         return NatsMessage.builder()
