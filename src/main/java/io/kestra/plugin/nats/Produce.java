@@ -119,19 +119,19 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
 
     public Output run(RunContext runContext) throws Exception {
         Connection connection = connect(runContext); 
-+       int messagesCount = Data.from(this.from).read(runContext)
-+            .map(throwFunction(object -> {
-+                connection.publish(
-+                    this.producerMessage(
-+                        runContext.render(this.subject),
-+                        runContext.render((Map<String, Object>) object)
-+                    )
-+                );
-+                return 1;
-+            }))
-+            .reduce(Integer::sum)
-+            .blockOptional()
-+            .orElse(0);
+        int messagesCount = Data.from(this.from).read(runContext)
+            .map(throwFunction(object -> {
+                 connection.publish(
+                     this.producerMessage(
+                         runContext.render(this.subject),
+                         runContext.render((Map<String, Object>) object)
+                     )
+                 );
+                 return 1;
+             }))
+            .reduce(Integer::sum)
+            .blockOptional()
+            .orElse(0);
 
         connection.flushBuffer();
         connection.close();
