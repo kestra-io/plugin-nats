@@ -100,11 +100,10 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         ),
     }
 )
-public class Produce extends NatsConnection implements RunnableTask<Produce.Output>, Data.From {
+public class Produce extends NatsConnection implements RunnableTask<Produce.Output>,Data.From {
     @Schema(
         title = "Subject to produce message to"
     )
-    @PluginProperty(dynamic = true)
     @NotBlank
     @NotNull
     private String subject;
@@ -116,14 +115,10 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
         anyOf = {String.class, List.class, Map.class}
     )
     @NotNull
-    @PluginProperty(dynamic = true)
     private Object from;
 
     public Output run(RunContext runContext) throws Exception {
-        Connection connection = connect(runContext);
-
-        Flux<Object> messagesFlowable = Data.from(this.from).read(runContext);
-+
+        Connection connection = connect(runContext); 
 +       int messagesCount = Data.from(this.from).read(runContext)
 +            .map(throwFunction(object -> {
 +                connection.publish(
