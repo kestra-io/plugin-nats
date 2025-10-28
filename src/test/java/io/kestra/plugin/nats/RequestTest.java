@@ -13,14 +13,19 @@ import io.nats.client.Options;
 import jakarta.inject.Inject;
 import org.junit.jupiter.api.Test;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.OutputStream;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.*;
+import java.util.Map;
+import java.util.UUID;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.nullValue;
 
 class RequestTest extends NatsTest {
     private static final String BASE_SUBJECT = "_unit.request.reply";
@@ -42,7 +47,7 @@ class RequestTest extends NatsTest {
         String subject = generateSubject();
 
         Map<String, Object> from = Map.of(
-            "headers",Map.of(SOME_HEADER_KEY, SOME_HEADER_VALUE),
+            "headers", Map.of(SOME_HEADER_KEY, SOME_HEADER_VALUE),
             "data", "Hello Kestra From Request Task"
         );
 
@@ -58,7 +63,11 @@ class RequestTest extends NatsTest {
 
         // Instead of storing a map with headers & data,
         // we'll store plain text. The plugin reads entire file => data.
-        String fileContent = "A single record from file";
+        String fileContent = """
+            {
+              "data": "A single record from file"
+            }
+            """;
 
         // Store the text file => produce a kestra:// URI
         URI fileUri = storeStringInStorage(runContext, fileContent);
@@ -68,7 +77,7 @@ class RequestTest extends NatsTest {
         assertThat(output.getResponse(), nullValue());
     }
 
-   @Test
+    @Test
     void requestMessageWithResponder() throws Exception {
         String subject = generateSubject();
 
@@ -93,7 +102,11 @@ class RequestTest extends NatsTest {
         RunContext runContext = runContextFactory.of();
 
         // We'll store plain text in the file
-        String fileContent = "Request data from file";
+        String fileContent = """
+            {
+              "data": "A single record from file"
+            }
+            """;
 
         // ephemeral subscription that replies "Response from file-based request"
         try (Connection conn = Nats.connect(Options.builder().server("localhost:4222").userInfo("kestra", "k3stra").build());) {
@@ -118,7 +131,7 @@ class RequestTest extends NatsTest {
             .username(Property.ofValue("kestra"))
             .password(Property.ofValue("k3stra"))
             .subject(Property.ofValue(subject))
-            .from(Property.ofValue(from))
+            .from(from)
             .requestTimeout(Property.ofValue(timeout))
             .build()
             .run(runContextFactory.of());

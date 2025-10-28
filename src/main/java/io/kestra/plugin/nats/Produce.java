@@ -3,26 +3,20 @@ package io.kestra.plugin.nats;
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Data;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
-import io.kestra.core.serializers.FileSerde;
 import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.impl.Headers;
 import io.nats.client.impl.NatsMessage;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.*;
-import lombok.experimental.SuperBuilder;
-
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
 import reactor.core.publisher.Flux;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -109,16 +103,15 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
     private String subject;
 
     @Schema(
-        title = "Source of message(s) to send",
-        description = "Can be an internal storage uri, a map or a list." +
-            "with the following format: headers, data",
+        title = io.kestra.core.models.property.Data.From.TITLE,
+        description = io.kestra.core.models.property.Data.From.DESCRIPTION,
         anyOf = {String.class, List.class, Map.class}
     )
     @NotNull
     private Object from;
 
     public Output run(RunContext runContext) throws Exception {
-        Connection connection = connect(runContext); 
+        Connection connection = connect(runContext);
         int messagesCount = Data.from(this.from).read(runContext)
             .map(throwFunction(object -> {
                  connection.publish(
