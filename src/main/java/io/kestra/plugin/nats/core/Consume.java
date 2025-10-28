@@ -41,6 +41,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         The server should also have a stream configured to match the given subject."""
 )
 @Plugin(
+    aliases = {"io.kestra.plugin.nats.Consume"},
     examples = {
         @Example(
             title = "Consume messages from any topic subject matching the kestra.> wildcard, using user password authentication.",

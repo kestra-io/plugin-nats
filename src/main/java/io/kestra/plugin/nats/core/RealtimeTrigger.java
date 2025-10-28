@@ -57,6 +57,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     description = "If you would like to consume multiple messages processed within a given time frame and process them in batch, you can use the [io.kestra.plugin.nats.core.Trigger](https://kestra.io/plugins/plugin-nats/triggers/io.kestra.plugin.nats.core.trigger) instead."
 )
 @Plugin(
+    aliases = {"io.kestra.plugin.nats.RealtimeTrigger"},
     examples = {
         @Example(
             title = "Subscribe to a NATS subject, getting every message from the beginning of the subject on first trigger execution.",

@@ -27,6 +27,7 @@ import java.util.Optional;
     description = "If you would like to consume each message from a NATS subject in real-time and create one execution per message, you can use the [io.kestra.plugin.nats.core.RealtimeTrigger](https://kestra.io/plugins/plugin-nats/triggers/io.kestra.plugin.nats.core.realtimetrigger) instead."
 )
 @Plugin(
+    aliases = {"io.kestra.plugin.nats.Trigger"},
     examples = {
         @Example(
             title = "Subscribe to a NATS subject, getting every message from the beginning of the subject on first trigger execution.",

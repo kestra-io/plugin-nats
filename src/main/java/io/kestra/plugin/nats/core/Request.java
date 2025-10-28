@@ -32,6 +32,7 @@ import java.util.Map;
     title = "Send a request to a NATS subject and wait for a reply."
 )
 @Plugin(
+    aliases = {"io.kestra.plugin.nats.Request"},
     examples = {
         @Example(
             title = "Send a request to the subject and wait for the reply (using username/password authentication).",

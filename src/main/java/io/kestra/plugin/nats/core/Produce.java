@@ -35,6 +35,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     title = "Produce messages in a NATS subject on a NATS server."
 )
 @Plugin(
+    aliases = {"io.kestra.plugin.nats.Produce"},
     examples = {
         @Example(
             title = "Produce a single message to kestra.publish subject, using user password authentication.",
