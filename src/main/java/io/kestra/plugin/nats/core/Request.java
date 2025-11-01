@@ -1,6 +1,7 @@
 package io.kestra.plugin.nats.core;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.property.Data;
@@ -135,7 +136,8 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
         if (messageMap.get("data") instanceof String dataStr) {
             data = dataStr;
         } else {
-            data = JacksonMapper.ofJson().writeValueAsString(messageMap.get("data"));
+            ObjectMapper objectMapper = new ObjectMapper();
+            data = objectMapper.writeValueAsString(messageMap.get("data"));
         }
 
         return NatsMessage.builder()
