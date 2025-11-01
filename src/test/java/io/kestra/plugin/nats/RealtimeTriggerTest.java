@@ -12,6 +12,7 @@ import io.kestra.scheduler.AbstractScheduler;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.jdbc.runner.JdbcScheduler;
 import io.kestra.core.services.FlowListenersInterface;
+import io.kestra.plugin.nats.core.Produce;
 import io.kestra.worker.DefaultWorker;
 import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Inject;

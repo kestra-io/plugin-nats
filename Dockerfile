@@ -9,4 +9,3 @@ RUN apk add curl
 COPY js.conf /js.conf
 COPY stream.conf /stream.conf
 COPY init-nats.sh /
-

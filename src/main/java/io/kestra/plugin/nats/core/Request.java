@@ -1,13 +1,14 @@
-package io.kestra.plugin.nats;
+package io.kestra.plugin.nats.core;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.property.Data;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
-import io.kestra.core.serializers.JacksonMapper;
+import io.kestra.plugin.nats.NatsConnection;
 import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.impl.Headers;
@@ -32,6 +33,7 @@ import java.util.Map;
     title = "Send a request to a NATS subject and wait for a reply."
 )
 @Plugin(
+    aliases = {"io.kestra.plugin.nats.Request"},
     examples = {
         @Example(
             title = "Send a request to the subject and wait for the reply (using username/password authentication).",
@@ -42,7 +44,7 @@ import java.util.Map;
 
                 tasks:
                   - id: request
-                    type: io.kestra.plugin.nats.Request
+                    type: io.kestra.plugin.nats.core.Request
                     url: nats://localhost:4222
                     username: nats_user
                     password: nats_password
@@ -134,7 +136,8 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
         if (messageMap.get("data") instanceof String dataStr) {
             data = dataStr;
         } else {
-            data = JacksonMapper.ofJson().writeValueAsString(messageMap.get("data"));
+            ObjectMapper objectMapper = new ObjectMapper();
+            data = objectMapper.writeValueAsString(messageMap.get("data"));
         }
 
         return NatsMessage.builder()

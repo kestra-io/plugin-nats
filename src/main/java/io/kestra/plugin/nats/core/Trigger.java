@@ -1,4 +1,4 @@
-package io.kestra.plugin.nats;
+package io.kestra.plugin.nats.core;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -7,6 +7,7 @@ import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.triggers.*;
 import io.kestra.core.runners.RunContext;
+import io.kestra.plugin.nats.ConsumeInterface;
 import io.nats.client.api.DeliverPolicy;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
@@ -23,9 +24,10 @@ import java.util.Optional;
 @NoArgsConstructor
 @Schema(
     title = "Trigger a flow on periodic message consumption from a NATS subject on a JetStream-enabled NATS server.",
-    description = "If you would like to consume each message from a NATS subject in real-time and create one execution per message, you can use the [io.kestra.plugin.nats.RealtimeTrigger](https://kestra.io/plugins/plugin-nats/triggers/io.kestra.plugin.nats.realtimetrigger) instead."
+    description = "If you would like to consume each message from a NATS subject in real-time and create one execution per message, you can use the [io.kestra.plugin.nats.core.RealtimeTrigger](https://kestra.io/plugins/plugin-nats/triggers/io.kestra.plugin.nats.core.realtimetrigger) instead."
 )
 @Plugin(
+    aliases = {"io.kestra.plugin.nats.Trigger"},
     examples = {
         @Example(
             title = "Subscribe to a NATS subject, getting every message from the beginning of the subject on first trigger execution.",
@@ -42,7 +44,7 @@ import java.util.Optional;
 
                 triggers:
                   - id: watch
-                    type: io.kestra.plugin.nats.Trigger
+                    type: io.kestra.plugin.nats.core.Trigger
                     url: nats://localhost:4222
                     username: nats_user
                     password: nats_password
