@@ -1,0 +1,8 @@
+group: io.kestra.plugin.nats
+name: "nats"
+title: "NATS"
+description: "This sub-group of plugins contains tasks for using Nats"
+body: ""
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"
