@@ -1,4 +1,4 @@
-package io.kestra.plugin.nats;
+package io.kestra.plugin.nats.core;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
@@ -6,6 +6,7 @@ import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.property.Data;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
+import io.kestra.plugin.nats.core.NatsConnection;
 import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.impl.Headers;
@@ -33,6 +34,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     title = "Produce messages in a NATS subject on a NATS server."
 )
 @Plugin(
+    aliases = { "io.kestra.plugin.nats.Produce"},
     examples = {
         @Example(
             title = "Produce a single message to kestra.publish subject, using user password authentication.",
@@ -43,7 +45,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 
                 tasks:
                   - id: produce
-                    type: io.kestra.plugin.nats.Produce
+                    type: io.kestra.plugin.nats.core.Produce
                     url: nats://localhost:4222
                     username: nats_user
                     password: nats_password
@@ -63,7 +65,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 
                 tasks:
                   - id: produce
-                    type: io.kestra.plugin.nats.Produce
+                    type: io.kestra.plugin.nats.core.Produce
                     url: nats://localhost:4222
                     username: nats_user
                     password: nats_password
@@ -84,7 +86,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 
                 tasks:
                   - id: produce
-                    type: io.kestra.plugin.nats.Produce
+                    type: io.kestra.plugin.nats.core.Produce
                     url: nats://localhost:4222
                     username: nats_user
                     password: nats_password

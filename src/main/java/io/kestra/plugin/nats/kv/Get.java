@@ -8,7 +8,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
-import io.kestra.plugin.nats.NatsConnection;
+import io.kestra.plugin.nats.core.NatsConnection;
 import io.nats.client.Connection;
 import io.nats.client.KeyValue;
 import io.nats.client.api.KeyValueEntry;

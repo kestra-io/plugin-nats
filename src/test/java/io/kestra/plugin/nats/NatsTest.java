@@ -1,4 +1,4 @@
-package io.kestra.plugin.nats;
+package io.kestra.plugin.nats.core;
 
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.storages.StorageInterface;

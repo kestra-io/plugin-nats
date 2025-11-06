@@ -3,7 +3,7 @@ namespace: io.kestra.tests
 
 triggers:
   - id: watch
-    type: io.kestra.plugin.nats.Trigger
+    type: io.kestra.plugin.nats.core.Trigger
     url: localhost:4222
     username: kestra
     password: k3stra

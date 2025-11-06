@@ -1,4 +1,4 @@
-package io.kestra.plugin.nats;
+package io.kestra.plugin.nats.core;
 
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
@@ -28,8 +28,8 @@ import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import static io.kestra.plugin.nats.ProduceTest.SOME_HEADER_KEY;
-import static io.kestra.plugin.nats.ProduceTest.SOME_HEADER_VALUE;
+import static io.kestra.plugin.nats.core.ProduceTest.SOME_HEADER_KEY;
+import static io.kestra.plugin.nats.core.ProduceTest.SOME_HEADER_VALUE;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 

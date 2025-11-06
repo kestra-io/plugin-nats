@@ -1,4 +1,4 @@
-package io.kestra.plugin.nats;
+package io.kestra.plugin.nats.core;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
@@ -7,6 +7,8 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.FileSerde;
+import io.kestra.plugin.nats.ConsumeInterface;
+import io.kestra.plugin.nats.core.NatsConnection;
 import io.nats.client.*;
 import io.nats.client.api.AckPolicy;
 import io.nats.client.api.ConsumerConfiguration;
@@ -39,6 +41,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
         The server should also have a stream configured to match the given subject."""
 )
 @Plugin(
+    aliases = { "io.kestra.plugin.nats.Consume"},
     examples = {
         @Example(
             title = "Consume messages from any topic subject matching the kestra.> wildcard, using user password authentication.",
@@ -49,7 +52,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 
                 tasks:
                   - id: consume
-                    type: io.kestra.plugin.nats.Consume
+                    type: io.kestra.plugin.nats.core.Consume
                     url: nats://localhost:4222
                     username: nats_user
                     password: nats_password
