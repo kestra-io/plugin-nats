@@ -1,4 +1,4 @@
-package io.kestra.plugin.nats;
+package io.kestra.plugin.nats.core;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
@@ -11,6 +11,7 @@ import io.kestra.core.models.triggers.TriggerContext;
 import io.kestra.core.models.triggers.TriggerOutput;
 import io.kestra.core.models.triggers.TriggerService;
 import io.kestra.core.runners.RunContext;
+import io.kestra.plugin.nats.core.NatsConnection;
 import io.nats.client.Connection;
 import io.nats.client.JetStreamOptions;
 import io.nats.client.JetStreamSubscription;
@@ -52,6 +53,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     description = "If you would like to consume multiple messages processed within a given time frame and process them in batch, you can use the [io.kestra.plugin.nats.Trigger](https://kestra.io/plugins/plugin-nats/triggers/io.kestra.plugin.nats.trigger) instead."
 )
 @Plugin(
+    aliases = { "io.kestra.plugin.nats.RealtimeTrigger"},
     examples = {
         @Example(
             title = "Subscribe to a NATS subject, getting every message from the beginning of the subject on first trigger execution.",
@@ -68,7 +70,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 
                 triggers:
                   - id: watch
-                    type: io.kestra.plugin.nats.RealtimeTrigger
+                    type: io.kestra.plugin.nats.core.RealtimeTrigger
                     url: nats://localhost:4222
                     username: nats_user
                     password: nats_password
