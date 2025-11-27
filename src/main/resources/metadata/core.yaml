@@ -1,0 +1,8 @@
+group: io.kestra.plugin.nats.core
+name: "core"
+title: "Core"
+description: "This subgroup of plugins contains core tasks for NATS messaging tasks and triggers."
+body: ""
+videos: []
+createdBy: "Kestra Core Team"
+managedBy: "Kestra Core Team"
