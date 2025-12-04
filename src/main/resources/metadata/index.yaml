@@ -1,8 +1,8 @@
 group: io.kestra.plugin.nats
 name: "nats"
 title: "NATS"
-description: "This sub-group of plugins contains tasks for using Nats"
-body: ""
+description: "Tasks that publish, subscribe, and work with NATS messaging."
+body: "Provide NATS server URLs and credentials/creds files to publish messages, consume subjects with triggers, and manage KV stores for lightweight state inside Kestra workflows."
 videos: []
 createdBy: "Kestra Core Team"
 managedBy: "Kestra Core Team"
