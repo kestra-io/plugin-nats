@@ -1,7 +1,5 @@
 @PluginSubGroup(
-    description = "This subgroup of plugins contains core tasks for NATS messaging tasks and triggers.",
-    categories = PluginSubGroup.PluginCategory.MESSAGING,
-    categories = {
+    description = "This subgroup of plugins contains core tasks for NATS messaging tasks and triggers.",categories = {
         PluginSubGroup.PluginCategory.DATA,
         PluginSubGroup.PluginCategory.INFRASTRUCTURE
     }
