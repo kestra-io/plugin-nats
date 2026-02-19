@@ -26,7 +26,8 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Put a Key/Value pair into a NATS Key/Value bucket."
+    title = "Put values into NATS Key/Value bucket",
+    description = "Writes one or more Key/Value entries to an existing NATS bucket. Values are rendered, serialized to JSON, and the resulting revisions are returned."
 )
 @Plugin(
     examples = {
@@ -44,10 +45,10 @@ import java.util.Map;
                     password: nats_passwd
                     bucketName: my_bucket
                     values:
-                      - key1: value1
-                      - key2: value2
-                      - key3:
-                        - subKey1: some other value
+                      key1: value1
+                      key2: value2
+                      key3:
+                        subKey1: some other value
                 """
         ),
     }
@@ -57,14 +58,16 @@ public class Put extends NatsConnection implements RunnableTask<Put.Output> {
     private final static ObjectMapper mapper = JacksonMapper.ofJson();
 
     @Schema(
-        title = "The name of the key value bucket."
+        title = "Bucket name",
+        description = "Rendered bucket identifier that must already exist."
     )
     @NotBlank
     @PluginProperty(dynamic = true)
     private String bucketName;
 
     @Schema(
-        title = "The Key/Value pairs."
+        title = "Values to write",
+        description = "Map of keys to values rendered then serialized to JSON before being stored."
     )
     @NotNull
     private Property<Map<String, Object>> values;
@@ -97,7 +100,8 @@ public class Put extends NatsConnection implements RunnableTask<Put.Output> {
     public static class Output implements io.kestra.core.models.tasks.Output {
 
         @Schema(
-            title = "The revision numbers for each key."
+            title = "Revision numbers",
+            description = "Revision returned by NATS for each written key."
         )
         private Map<String, Long> revisions;
 

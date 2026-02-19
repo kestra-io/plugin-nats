@@ -24,7 +24,8 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Create Key/Value bucket in NATS."
+    title = "Create NATS Key/Value bucket",
+    description = "Creates a Key/Value bucket on the target NATS cluster. Renders name and metadata before creation, sets maxHistoryPerKey to 1 by default, and lets you cap bucket and value sizes in bytes."
 )
 @Plugin(
     examples = {
@@ -70,36 +71,42 @@ import java.util.Map;
 public class CreateBucket extends NatsConnection implements RunnableTask<CreateBucket.Output> {
 
     @Schema(
-        title = "The name of the key value bucket."
+        title = "Bucket name",
+        description = "Rendered bucket identifier; must be unique within the NATS account."
     )
     @NotBlank
     @PluginProperty(dynamic = true)
     private String name;
 
     @Schema(
-        title = "The description of the key value bucket."
+        title = "Bucket description",
+        description = "Optional human-readable description stored with the bucket."
     )
     @PluginProperty(dynamic = true)
     private String description;
 
     @Schema(
-        title = "The metadata of the key value bucket."
+        title = "Bucket metadata",
+        description = "Optional string map persisted as NATS Key/Value metadata."
     )
     private Property<Map<String, String>> metadata;
 
     @Schema(
-        title = "The maximum number of history for a key."
+        title = "Max history per key",
+        description = "Maximum revisions retained for each key; defaults to 1 to keep only the latest value."
     )
     @Builder.Default
     private Property<Integer> historyPerKey = Property.ofValue(1);
 
     @Schema(
-        title = "The maximum size in bytes for this bucket."
+        title = "Bucket size limit",
+        description = "Optional maximum bucket size in bytes; leave unset to use the server default."
     )
     private Property<Long> bucketSize;
 
     @Schema(
-        title = "The maximum size in bytes for an individual value in the bucket."
+        title = "Value size limit",
+        description = "Optional maximum size in bytes for any single entry in the bucket."
     )
     private Property<Long> valueSize;
 
@@ -149,37 +156,44 @@ public class CreateBucket extends NatsConnection implements RunnableTask<CreateB
     public static class Output implements io.kestra.core.models.tasks.Output {
 
         @Schema(
-            title = "The name of the key value bucket."
+            title = "Bucket name",
+            description = "Name of the created bucket."
         )
         private String bucket;
 
         @Schema(
-            title = "The description of the bucket."
+            title = "Bucket description",
+            description = "Description stored alongside the bucket."
         )
         private String description;
 
         @Schema(
-            title = "The maximum number of history for a key."
+            title = "Max history per key",
+            description = "Configured revision cap per key."
         )
         private long history;
 
         @Schema(
-            title = "The number of total entries in the bucket, including historical entries."
+            title = "Total entries",
+            description = "Number of entries including historical revisions."
         )
         private long entryCount;
 
         @Schema(
-            title = "The maximum size in bytes for this bucket."
+            title = "Bucket size limit",
+            description = "Maximum bucket size in bytes if configured, otherwise zero."
         )
         private long bucketSize;
 
         @Schema(
-            title = "The maximum size in bytes for an individual value in the bucket."
+            title = "Value size limit",
+            description = "Maximum entry size in bytes if configured, otherwise zero."
         )
         private long valueSize;
 
         @Schema(
-            title = "The metadata for the store"
+            title = "Bucket metadata",
+            description = "Metadata map returned by NATS."
         )
         private Map<String,String> metadata;
 

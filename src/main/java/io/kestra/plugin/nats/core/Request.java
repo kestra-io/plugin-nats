@@ -30,7 +30,8 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Send a request to a NATS subject and wait for a reply."
+    title = "Request/Reply over a NATS subject",
+    description = "Sends a single request message to the rendered subject and waits for a reply. Headers are preserved, non-string payloads are JSON-encoded, and the timeout defaults to 5 seconds."
 )
 @Plugin(
     aliases = { "io.kestra.plugin.nats.Request"},
@@ -53,14 +54,15 @@ import java.util.Map;
                       headers:
                         someHeaderKey: someHeaderValue
                       data: "Hello from Kestra!"
-                    requestTimeout: 2000
+                    requestTimeout: PT2S
                 """
         )
     }
 )
 public class Request extends NatsConnection implements RunnableTask<Request.Output>, Data.From {
     @Schema(
-        title = "Subject to send the request to"
+        title = "Subject to request",
+        description = "Rendered subject used for the request."
     )
     @NotNull
     private Property<String> subject;
@@ -73,8 +75,8 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
     private Object from;
 
     @Schema(
-        title = "Timeout in milliseconds to wait for a response.",
-        description = "Defaults to 5000 ms."
+        title = "Request timeout",
+        description = "Duration to wait for a reply; defaults to PT5S."
     )
     @Builder.Default
     @NotNull
@@ -150,7 +152,8 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
-            title = "Response received from the request, or null if timed out/no responders."
+            title = "Reply payload",
+            description = "UTF-8 reply string, or null when no responder or timeout."
         )
         private final String response;
     }
