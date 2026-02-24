@@ -24,8 +24,8 @@ import java.util.Optional;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Trigger a flow on periodic message consumption from a NATS subject on a JetStream-enabled NATS server.",
-    description = "If you would like to consume each message from a NATS subject in real-time and create one execution per message, you can use the [io.kestra.plugin.nats.RealtimeTrigger](https://kestra.io/plugins/plugin-nats/triggers/io.kestra.plugin.nats.realtimetrigger) instead."
+    title = "Trigger on polled NATS messages",
+    description = "Polls a JetStream subject on a schedule (default every 60s) and starts one execution per batch. Defaults: deliverPolicy=All, pollDuration=PT2S, batchSize=10. Use the realtime [io.kestra.plugin.nats.RealtimeTrigger](https://kestra.io/plugins/plugin-nats/triggers/io.kestra.plugin.nats.realtimetrigger) to emit one execution per message."
 )
 @Plugin(
     aliases = {"io.kestra.plugin.nats.Trigger"},

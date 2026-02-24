@@ -31,7 +31,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Produce messages in a NATS subject on a NATS server."
+    title = "Publish messages to a NATS subject",
+    description = "Publishes one or more messages to the rendered subject using headers and data provided via `from`. Supports lists, maps, or storage files; flushes before closing and returns the number of messages sent."
 )
 @Plugin(
     aliases = { "io.kestra.plugin.nats.Produce"},
@@ -98,7 +99,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 )
 public class Produce extends NatsConnection implements RunnableTask<Produce.Output>, Data.From {
     @Schema(
-        title = "Subject to produce message to"
+        title = "Subject to publish to",
+        description = "Rendered subject or wildcard where messages are sent."
     )
     @NotBlank
     @NotNull
@@ -165,7 +167,8 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
     @Getter
     public static class Output implements io.kestra.core.models.tasks.Output {
         @Schema(
-            title = "Number of messages produced"
+            title = "Messages produced",
+            description = "Total messages published during this run."
         )
         private final Integer messagesCount;
     }

@@ -13,19 +13,20 @@ import java.time.Duration;
 public interface ConsumeInterface {
 
     @Schema(
-        title = "The max number of rows to fetch before stopping"
+        title = "Maximum records to consume",
+        description = "Optional cap on total messages before stopping; implementations stop once this count is reached."
     )
     Property<Integer> getMaxRecords();
 
     @Schema(
-        title = "The max duration before stopping the message polling",
-        description = "It's not an hard limit and is evaluated every second"
+        title = "Maximum polling duration",
+        description = "Soft wall-clock limit evaluated between fetches; polling stops once exceeded."
     )
     Property<Duration> getMaxDuration();
 
     @Schema(
-        title = "Polling duration before processing message",
-        description = "If no messages are available, define the max duration to wait for new messages"
+        title = "Fetch wait duration",
+        description = "Max wait per fetch when no messages are available; implementations default to PT2S."
     )
     @NotNull
     Property<Duration> getPollDuration();

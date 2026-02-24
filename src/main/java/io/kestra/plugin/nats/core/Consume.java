@@ -35,10 +35,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Consume messages from a NATS subject on a JetStream-enabled NATS server.",
-    description = """
-        Please note that the server you run the task against must have JetStream enabled for task to work.
-        The server should also have a stream configured to match the given subject."""
+    title = "Consume NATS JetStream messages",
+    description = "Pulls messages from a JetStream subject with explicit acks and writes them to Kestra internal storage. Requires a stream matching the rendered subject; defaults: deliverPolicy=All, pollDuration=PT2S, batchSize=10. Stops when no messages, maxRecords, or maxDuration is reached."
 )
 @Plugin(
     aliases = { "io.kestra.plugin.nats.Consume"},
@@ -65,22 +63,54 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 )
 public class Consume extends NatsConnection implements RunnableTask<Consume.Output>, ConsumeInterface, SubscribeInterface {
 
+    @Schema(
+        title = "Subject to consume",
+        description = "Rendered subject or wildcard the JetStream stream is bound to."
+    )
     private String subject;
 
+    @Schema(
+        title = "Durable consumer name",
+        description = "Optional durable name to resume position between runs."
+    )
     private Property<String> durableId;
 
+    @Schema(
+        title = "Start time",
+        description = "ISO-8601 date-time rendered and parsed to set the deliver start; ignored if null."
+    )
     private Property<String> since;
 
+    @Schema(
+        title = "Poll duration",
+        description = "Wait time per fetch; defaults to PT2S."
+    )
     @Builder.Default
     private Property<Duration> pollDuration = Property.ofValue(Duration.ofSeconds(2));
 
+    @Schema(
+        title = "Batch size",
+        description = "Maximum messages fetched per pull; defaults to 10."
+    )
     @Builder.Default
     private Integer batchSize = 10;
 
+    @Schema(
+        title = "Max records",
+        description = "Optional cap on total messages; stops once reached."
+    )
     private Property<Integer> maxRecords;
 
+    @Schema(
+        title = "Max duration",
+        description = "Optional wall-clock duration after which polling stops."
+    )
     private Property<Duration> maxDuration;
 
+    @Schema(
+        title = "Deliver policy",
+        description = "JetStream deliver policy; defaults to All."
+    )
     @Builder.Default
     private Property<DeliverPolicy> deliverPolicy = Property.ofValue(DeliverPolicy.All);
 
@@ -165,12 +195,14 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
     public static class Output implements io.kestra.core.models.tasks.Output {
 
         @Schema(
-            title = "Number of messages consumed."
+            title = "Messages consumed",
+            description = "Total acknowledged messages during this run."
         )
         private final Integer messagesCount;
 
         @Schema(
-            title = "URI of a Kestra internal storage file."
+            title = "Output file URI",
+            description = "Kestra internal storage URI of the ION file containing consumed messages."
         )
         private URI uri;
 
@@ -181,12 +213,28 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
     @Builder
     public static class NatsMessageOutput implements io.kestra.core.models.tasks.Output {
 
+        @Schema(
+            title = "Subject",
+            description = "Subject of the consumed message."
+        )
         private String subject;
 
+        @Schema(
+            title = "Headers",
+            description = "Message headers grouped by key."
+        )
         private Map<String, List<String>> headers;
 
+        @Schema(
+            title = "Data",
+            description = "Message payload as UTF-8 string."
+        )
         private String data;
 
+        @Schema(
+            title = "Timestamp",
+            description = "JetStream message timestamp."
+        )
         private Instant timestamp;
 
     }

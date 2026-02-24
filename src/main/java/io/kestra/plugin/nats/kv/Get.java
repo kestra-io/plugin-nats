@@ -32,7 +32,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Get a value from a NATS Key/Value bucket."
+    title = "Fetch values from NATS Key/Value bucket",
+    description = "Reads values by key or specific revisions from a NATS Key/Value bucket. Values are JSON-deserialized into objects; missing keys are ignored."
 )
 @Plugin(
     examples = {
@@ -70,8 +71,8 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                     password: nats_passwd
                     bucketName: my_bucket
                     keyRevisions:
-                      - key1: 1
-                      - key2: 3
+                      key1: 1
+                      key2: 3
 				"""
         ),
     }
@@ -81,20 +82,23 @@ public class Get extends NatsConnection implements RunnableTask<Get.Output> {
     private final static ObjectMapper mapper = JacksonMapper.ofJson();
 
     @Schema(
-        title = "The name of the key value bucket."
+        title = "Bucket name",
+        description = "Rendered bucket identifier to read from."
     )
     @NotBlank
     @PluginProperty(dynamic = true)
     private String bucketName;
 
     @Schema(
-        title = "The keys of Key/Value pairs."
+        title = "Keys to fetch",
+        description = "Rendered list of keys used when no specific revisions are provided."
     )
     @NotNull
     private Property<List<String>> keys;
 
     @Schema(
-        title = "The keys with revision of Key/Value pairs."
+        title = "Keys with revisions",
+        description = "Optional map of key to revision; when set, supersedes the keys list."
     )
     private Property<Map<String, Long>> keyRevisions;
 
@@ -134,7 +138,8 @@ public class Get extends NatsConnection implements RunnableTask<Get.Output> {
     public static class Output implements io.kestra.core.models.tasks.Output {
 
         @Schema(
-            title = "The Key/Value pairs."
+            title = "Key/value results",
+            description = "Map of returned keys to deserialized JSON objects; missing keys are omitted."
         )
         private Map<String, Object> output;
 

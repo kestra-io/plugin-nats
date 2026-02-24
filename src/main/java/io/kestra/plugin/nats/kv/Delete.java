@@ -26,7 +26,8 @@ import java.util.Map;
 @Getter
 @NoArgsConstructor
 @Schema(
-    title = "Delete a pair from a NATS Key/Value bucket."
+    title = "Delete keys from NATS Key/Value bucket",
+    description = "Removes the latest value for each provided key and writes a delete marker. Bucket name and keys are rendered, and the bucket must already exist."
 )
 @Plugin(
     examples = {
@@ -43,7 +44,7 @@ import java.util.Map;
                     username: nats_user
                     password: nats_passwd
                     bucketName: my_bucket
-                     keys:
+                    keys:
                       - key1
                       - key2
                 """
@@ -53,14 +54,16 @@ import java.util.Map;
 public class Delete extends NatsConnection implements RunnableTask<VoidOutput> {
 
      @Schema(
-          title = "The name of the key value bucket."
+          title = "Bucket name",
+          description = "Rendered bucket identifier that must already exist."
      )
      @NotBlank
      @PluginProperty(dynamic = true)
      private String bucketName;
 
      @Schema(
-          title = "The keys of Key/Value pairs."
+          title = "Keys to delete",
+          description = "List of keys rendered before deletion; each delete creates a tombstone and increments the revision."
      )
      @NotNull
      private Property<List<String>> keys;

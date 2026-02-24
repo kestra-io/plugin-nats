@@ -1,6 +1,6 @@
 group: io.kestra.plugin.nats.core
 name: "core"
-title: "Core"
+title: "NATS Core"
 description: "Tasks that publish and subscribe to NATS subjects with triggers."
 body: "Configure NATS servers, authentication (user/password, token, or creds), subjects, and payload serialization to send messages or start flows when messages arrive, with consumer options for durable names and ack handling."
 videos: []
