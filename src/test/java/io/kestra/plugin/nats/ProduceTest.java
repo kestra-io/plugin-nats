@@ -62,7 +62,7 @@ class ProduceTest extends NatsTest {
             .subject(subject)
             .durableId(Property.ofValue("produceMessage-" + UUID.randomUUID()))
             .deliverPolicy(Property.ofValue(DeliverPolicy.All))
-            .pollDuration(Property.ofValue(Duration.ofSeconds(1)))
+            .pollDuration(Property.ofValue(Duration.ofSeconds(3)))
             .build()
             .run(runContextFactory.of());
 
@@ -106,7 +106,7 @@ class ProduceTest extends NatsTest {
             .subject(subject)
             .durableId(Property.ofValue("produceMultipleMessages-" + UUID.randomUUID()))
             .deliverPolicy(Property.ofValue(DeliverPolicy.All))
-            .pollDuration(Property.ofValue(Duration.ofSeconds(1)))
+            .pollDuration(Property.ofValue(Duration.ofSeconds(3)))
             .build()
             .run(runContextFactory.of());
 
@@ -165,7 +165,7 @@ class ProduceTest extends NatsTest {
             .subject(subject)
             .durableId(Property.ofValue("produceMultipleMessages-" + UUID.randomUUID()))
             .deliverPolicy(Property.ofValue(DeliverPolicy.All))
-            .pollDuration(Property.ofValue(Duration.ofSeconds(1)))
+            .pollDuration(Property.ofValue(Duration.ofSeconds(3)))
             .build()
             .run(runContextFactory.of());
 
