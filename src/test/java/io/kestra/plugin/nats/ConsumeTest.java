@@ -72,7 +72,7 @@ class ConsumeTest extends NatsTest {
             .subject("kestra.consumeMessageFromSubject.>")
             .durableId(Property.ofValue("consumeMessageFromSubject-" + UUID.randomUUID()))
             .deliverPolicy(Property.ofValue(DeliverPolicy.LastPerSubject))
-            .pollDuration(Property.ofValue(Duration.ofSeconds(1)))
+            .pollDuration(Property.ofValue(Duration.ofSeconds(3)))
             .batchSize(1)
             .build()
             .run(runContextFactory.of());
@@ -135,7 +135,7 @@ class ConsumeTest extends NatsTest {
             .subject("kestra.consumeSince.>")
             .durableId(Property.ofValue("consumeSince-" + UUID.randomUUID()))
             .deliverPolicy(Property.ofValue(DeliverPolicy.ByStartTime))
-            .pollDuration(Property.ofValue(Duration.ofSeconds(1)))
+            .pollDuration(Property.ofValue(Duration.ofSeconds(3)))
             .since(Property.ofValue(messageTimestamp.get().minus(1, ChronoUnit.MILLIS).toString()))
             .build()
             .run(runContextFactory.of());
