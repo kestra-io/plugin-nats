@@ -1,9 +1,15 @@
 package io.kestra.plugin.nats.core;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.security.NoSuchAlgorithmException;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.Task;
 import io.kestra.core.runners.RunContext;
+
 import io.nats.client.AuthHandler;
 import io.nats.client.Connection;
 import io.nats.client.Nats;
@@ -13,11 +19,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-
-import java.io.File;
-import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.security.NoSuchAlgorithmException;
 
 @SuperBuilder
 @ToString
@@ -38,8 +39,10 @@ public abstract class NatsConnection extends Task implements NatsConnectionInter
     protected Connection connect(RunContext runContext) throws IOException, InterruptedException, IllegalVariableEvaluationException, NoSuchAlgorithmException {
         Options.Builder connectOptions = Options.builder().server(runContext.render(url));
         if (username != null && password != null) {
-            connectOptions.userInfo(runContext.render(username).as(String.class).orElseThrow(),
-                runContext.render(password).as(String.class).orElseThrow());
+            connectOptions.userInfo(
+                runContext.render(username).as(String.class).orElseThrow(),
+                runContext.render(password).as(String.class).orElseThrow()
+            );
         }
 
         if (token != null) {

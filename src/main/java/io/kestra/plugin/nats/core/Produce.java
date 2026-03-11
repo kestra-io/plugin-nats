@@ -1,12 +1,17 @@
 package io.kestra.plugin.nats.core;
 
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.property.Data;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
-import io.kestra.plugin.nats.core.NatsConnection;
+
 import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.impl.Headers;
@@ -17,11 +22,6 @@ import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
 import reactor.core.publisher.Flux;
-
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -35,7 +35,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     description = "Publishes one or more messages to the rendered subject using headers and data provided via `from`. Supports lists, maps, or storage files; flushes before closing and returns the number of messages sent."
 )
 @Plugin(
-    aliases = { "io.kestra.plugin.nats.Produce"},
+    aliases = { "io.kestra.plugin.nats.Produce" },
     examples = {
         @Example(
             title = "Produce a single message to kestra.publish subject, using user password authentication.",
@@ -109,7 +109,7 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
     @Schema(
         title = io.kestra.core.models.property.Data.From.TITLE,
         description = io.kestra.core.models.property.Data.From.DESCRIPTION,
-        anyOf = {String.class, List.class, Map.class}
+        anyOf = { String.class, List.class, Map.class }
     )
     @NotNull
     private Object from;
@@ -117,15 +117,16 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
     public Output run(RunContext runContext) throws Exception {
         Connection connection = connect(runContext);
         int messagesCount = Data.from(this.from).read(runContext)
-            .map(throwFunction(object -> {
-                 connection.publish(
-                     this.producerMessage(
-                         runContext.render(this.subject),
-                         runContext.render((Map<String, Object>) object)
-                     )
-                 );
-                 return 1;
-             }))
+            .map(throwFunction(object ->
+            {
+                connection.publish(
+                    this.producerMessage(
+                        runContext.render(this.subject),
+                        runContext.render((Map<String, Object>) object)
+                    )
+                );
+                return 1;
+            }))
             .reduce(Integer::sum)
             .blockOptional()
             .orElse(0);
@@ -139,16 +140,18 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
     }
 
     private Integer publish(RunContext runContext, Connection connection, Flux<Object> messagesFlowable) throws IllegalVariableEvaluationException {
-        return messagesFlowable.map(throwFunction(object -> {
-                connection.publish(this.producerMessage(runContext.render(this.subject), runContext.render((Map<String, Object>) object)));
-                return 1;
-            })).reduce(Integer::sum)
+        return messagesFlowable.map(throwFunction(object ->
+        {
+            connection.publish(this.producerMessage(runContext.render(this.subject), runContext.render((Map<String, Object>) object)));
+            return 1;
+        })).reduce(Integer::sum)
             .block();
     }
 
     private Message producerMessage(String subject, Map<String, Object> message) {
         Headers headers = new Headers();
-        ((Map<String, Object>) message.getOrDefault("headers", Collections.emptyMap())).forEach((headerKey, headerValue) -> {
+        ((Map<String, Object>) message.getOrDefault("headers", Collections.emptyMap())).forEach((headerKey, headerValue) ->
+        {
             if (headerValue instanceof Collection<?> headerValues) {
                 headers.add(headerKey, (Collection<String>) headerValues);
             } else {

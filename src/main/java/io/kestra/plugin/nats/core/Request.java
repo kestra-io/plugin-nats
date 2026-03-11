@@ -1,6 +1,13 @@
 package io.kestra.plugin.nats.core;
 
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.property.Data;
@@ -8,7 +15,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
-import io.kestra.plugin.nats.core.NatsConnection;
+
 import io.nats.client.Connection;
 import io.nats.client.Message;
 import io.nats.client.impl.Headers;
@@ -17,12 +24,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
 
 @SuperBuilder
 @ToString
@@ -34,7 +35,7 @@ import java.util.Map;
     description = "Sends a single request message to the rendered subject and waits for a reply. Headers are preserved, non-string payloads are JSON-encoded, and the timeout defaults to 5 seconds."
 )
 @Plugin(
-    aliases = { "io.kestra.plugin.nats.Request"},
+    aliases = { "io.kestra.plugin.nats.Request" },
     examples = {
         @Example(
             title = "Send a request to the subject and wait for the reply (using username/password authentication).",
@@ -122,7 +123,8 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
         Headers headers = new Headers();
         Object headersObj = messageMap.getOrDefault("headers", Collections.emptyMap());
         if (headersObj instanceof Map<?, ?> mapHeaders) {
-            mapHeaders.forEach((key, value) -> {
+            mapHeaders.forEach((key, value) ->
+            {
                 if (value instanceof Collection<?> multiValues) {
                     // Multi-value header
                     headers.add(key.toString(), (Collection<String>) multiValues);

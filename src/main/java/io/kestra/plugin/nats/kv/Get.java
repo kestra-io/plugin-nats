@@ -1,6 +1,13 @@
 package io.kestra.plugin.nats.kv;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -9,6 +16,7 @@ import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.core.serializers.JacksonMapper;
 import io.kestra.plugin.nats.core.NatsConnection;
+
 import io.nats.client.Connection;
 import io.nats.client.KeyValue;
 import io.nats.client.api.KeyValueEntry;
@@ -17,12 +25,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -60,20 +62,20 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             title = "Gets a value from a NATS Key/Value bucket by keys with revisions.",
             full = true,
             code = """
-			    id: nats_kv_get
-                namespace: company.team
+                   id: nats_kv_get
+                            namespace: company.team
 
-                tasks:
-                  - id: get
-                    type: io.kestra.plugin.nats.kv.Get
-				    url: nats://localhost:4222
-                    username: nats_user
-                    password: nats_passwd
-                    bucketName: my_bucket
-                    keyRevisions:
-                      key1: 1
-                      key2: 3
-				"""
+                            tasks:
+                              - id: get
+                                type: io.kestra.plugin.nats.kv.Get
+                    url: nats://localhost:4222
+                                username: nats_user
+                                password: nats_passwd
+                                bucketName: my_bucket
+                                keyRevisions:
+                                  key1: 1
+                                  key2: 3
+                """
         ),
     }
 )

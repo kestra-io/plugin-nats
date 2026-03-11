@@ -2,12 +2,12 @@ package io.kestra.plugin.nats.core;
 
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
+
 import io.nats.client.api.DeliverPolicy;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-
 
 /**
  * Base interface to subscribe and consume a subject.
@@ -47,9 +47,10 @@ public interface SubscribeInterface {
 
     @Schema(
         title = "The point in the stream to receive messages from.",
-        description= "Possible settings are:\n" +
+        description = "Possible settings are:\n" +
             "- `All`: The default policy. The consumer will start receiving from the earliest available message.\n" +
-            "- `Last`: When first consuming messages, the consumer will start receiving messages with the last message added to the stream, or the last message in the stream that matches the consumer's filter subject if defined.\n" +
+            "- `Last`: When first consuming messages, the consumer will start receiving messages with the last message added to the stream, or the last message in the stream that matches the consumer's filter subject if defined.\n"
+            +
             "- `New`: When first consuming messages, the consumer will only start receiving messages that were created after the consumer was created.\n" +
             "- `ByStartSequence`: When first consuming messages, start at the first message having the sequence number or the next one available.\n" +
             "- `ByStartTime`: When first consuming messages, start with messages on or after this time. The consumer is required to specify `since` which defines this start time.\n" +

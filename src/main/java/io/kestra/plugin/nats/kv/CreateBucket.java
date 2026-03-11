@@ -1,5 +1,7 @@
 package io.kestra.plugin.nats.kv;
 
+import java.util.Map;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -7,6 +9,7 @@ import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.nats.core.NatsConnection;
+
 import io.nats.client.Connection;
 import io.nats.client.KeyValueManagement;
 import io.nats.client.api.KeyValueConfiguration;
@@ -15,8 +18,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-
-import java.util.Map;
 
 @SuperBuilder
 @ToString
@@ -195,7 +196,7 @@ public class CreateBucket extends NatsConnection implements RunnableTask<CreateB
             title = "Bucket metadata",
             description = "Metadata map returned by NATS."
         )
-        private Map<String,String> metadata;
+        private Map<String, String> metadata;
 
     }
 

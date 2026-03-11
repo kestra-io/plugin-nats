@@ -1,18 +1,5 @@
 package io.kestra.plugin.nats.core;
 
-import io.kestra.core.models.property.Property;
-import io.kestra.core.runners.RunContextFactory;
-import io.kestra.core.storages.StorageInterface;
-import io.kestra.core.utils.Rethrow;
-import io.nats.client.*;
-import io.nats.client.api.ConsumerConfiguration;
-import io.nats.client.api.DeliverPolicy;
-import io.nats.client.impl.Headers;
-import jakarta.inject.Inject;
-import org.hamcrest.Matchers;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.Test;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
@@ -23,6 +10,21 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
+
+import org.hamcrest.Matchers;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+
+import io.kestra.core.models.property.Property;
+import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.storages.StorageInterface;
+import io.kestra.core.utils.Rethrow;
+
+import io.nats.client.*;
+import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.api.DeliverPolicy;
+import io.nats.client.impl.Headers;
+import jakarta.inject.Inject;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -41,21 +43,22 @@ class ConsumeTest extends NatsTest {
 
         AtomicReference<Instant> messageInstant = new AtomicReference<>();
         CountDownLatch countDownLatch = new CountDownLatch(1);
-        JetStreamSubscription subscription = connection.jetStream().subscribe("kestra.consumeMessageFromSubject.topic", PullSubscribeOptions.builder()
-            .configuration(ConsumerConfiguration.builder().deliverPolicy(DeliverPolicy.New).build())
-            .build()
+        JetStreamSubscription subscription = connection.jetStream().subscribe(
+            "kestra.consumeMessageFromSubject.topic", PullSubscribeOptions.builder()
+                .configuration(ConsumerConfiguration.builder().deliverPolicy(DeliverPolicy.New).build())
+                .build()
         );
 
         Executors.newSingleThreadExecutor().submit(Rethrow.throwRunnable(() ->
-            {
-                List<Message> messages = subscription.fetch(1, Duration.ofSeconds(2));
-                messageInstant.set(
-                    // Compulsory to match ION-serialized instant precision
-                    Instant.ofEpochMilli(messages.get(0).metaData().timestamp().toInstant().toEpochMilli())
-                );
-                countDownLatch.countDown();
-                connection.close();
-            }
+        {
+            List<Message> messages = subscription.fetch(1, Duration.ofSeconds(2));
+            messageInstant.set(
+                // Compulsory to match ION-serialized instant precision
+                Instant.ofEpochMilli(messages.get(0).metaData().timestamp().toInstant().toEpochMilli())
+            );
+            countDownLatch.countDown();
+            connection.close();
+        }
         ));
 
         Headers headers = new Headers();
@@ -83,43 +86,45 @@ class ConsumeTest extends NatsTest {
 
         assertThat(output.getMessagesCount(), is(2));
         assertThat(result.size(), is(2));
-        assertThat(result, Matchers.contains(
-            Matchers.<Map<String, Object>>allOf(
-                Matchers.hasEntry("subject", "kestra.consumeMessageFromSubject.topic"),
-                Matchers.hasEntry(is("headers"), new HeaderMatcher(hasEntry(is(expectedHeaderKey), contains(expectedHeaderValue)))),
-                Matchers.hasEntry("data", "Hello Kestra"),
-                Matchers.hasEntry("timestamp", messageInstant.get())
+        assertThat(
+            result, Matchers.contains(
+                Matchers.<Map<String, Object>> allOf(
+                    Matchers.hasEntry("subject", "kestra.consumeMessageFromSubject.topic"),
+                    Matchers.hasEntry(is("headers"), new HeaderMatcher(hasEntry(is(expectedHeaderKey), contains(expectedHeaderValue)))),
+                    Matchers.hasEntry("data", "Hello Kestra"),
+                    Matchers.hasEntry("timestamp", messageInstant.get())
+                ),
+                Matchers.<Map<String, Object>> allOf(
+                    Matchers.hasEntry("subject", "kestra.consumeMessageFromSubject.anotherTopic"),
+                    Matchers.hasEntry(is("headers"), new HeaderMatcher(anEmptyMap())),
+                    Matchers.hasEntry("data", "Hello Again")
+                )
             )
-            ,
-            Matchers.<Map<String, Object>>allOf(
-                Matchers.hasEntry("subject", "kestra.consumeMessageFromSubject.anotherTopic"),
-                Matchers.hasEntry(is("headers"), new HeaderMatcher(anEmptyMap())),
-                Matchers.hasEntry("data", "Hello Again")
-            )
-        ));
+        );
     }
 
     @Test
     void consumeSince() throws Exception {
         Connection connection = Nats.connect(Options.builder().server("localhost:4222").userInfo("kestra", "k3stra").build());
 
-        JetStreamSubscription subscription = connection.jetStream().subscribe("kestra.consumeSince.>", PullSubscribeOptions.builder()
-            .configuration(ConsumerConfiguration.builder().deliverPolicy(DeliverPolicy.New).build())
-            .build()
+        JetStreamSubscription subscription = connection.jetStream().subscribe(
+            "kestra.consumeSince.>", PullSubscribeOptions.builder()
+                .configuration(ConsumerConfiguration.builder().deliverPolicy(DeliverPolicy.New).build())
+                .build()
         );
 
         AtomicReference<ZonedDateTime> messageTimestamp = new AtomicReference<>();
         CountDownLatch countDownLatch = new CountDownLatch(1);
         Executors.newSingleThreadExecutor().submit(Rethrow.throwRunnable(() ->
-            {
-                List<Message> messages = subscription.fetch(2, Duration.ofSeconds(2));
-                messageTimestamp.set(
-                    // Compulsory to match ION-serialized instant precision
-                    messages.get(1).metaData().timestamp()
-                );
-                countDownLatch.countDown();
-                connection.close();
-            }
+        {
+            List<Message> messages = subscription.fetch(2, Duration.ofSeconds(2));
+            messageTimestamp.set(
+                // Compulsory to match ION-serialized instant precision
+                messages.get(1).metaData().timestamp()
+            );
+            countDownLatch.countDown();
+            connection.close();
+        }
         ));
 
         connection.publish("kestra.consumeSince.topic", "First message".getBytes());

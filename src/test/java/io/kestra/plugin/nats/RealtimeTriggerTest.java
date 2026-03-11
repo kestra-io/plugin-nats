@@ -1,28 +1,29 @@
 package io.kestra.plugin.nats.core;
 
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+
+import org.junit.jupiter.api.Test;
+
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.queues.QueueFactoryInterface;
 import io.kestra.core.queues.QueueInterface;
 import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.core.runners.RunContextFactory;
-import io.kestra.core.runners.Worker;
+import io.kestra.core.services.FlowListenersInterface;
 import io.kestra.core.storages.StorageInterface;
-import io.kestra.scheduler.AbstractScheduler;
 import io.kestra.core.utils.TestsUtils;
 import io.kestra.jdbc.runner.JdbcScheduler;
-import io.kestra.core.services.FlowListenersInterface;
+import io.kestra.scheduler.AbstractScheduler;
 import io.kestra.worker.DefaultWorker;
+
 import io.micronaut.context.ApplicationContext;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
-import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
-
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 import static io.kestra.plugin.nats.core.ProduceTest.SOME_HEADER_KEY;
 import static io.kestra.plugin.nats.core.ProduceTest.SOME_HEADER_VALUE;
@@ -60,7 +61,8 @@ class RealtimeTriggerTest extends NatsTest {
             );
         ) {
             // wait for execution
-            Flux<Execution> receive = TestsUtils.receive(executionQueue, execution -> {
+            Flux<Execution> receive = TestsUtils.receive(executionQueue, execution ->
+            {
                 queueCount.countDown();
                 assertThat(execution.getLeft().getFlowId(), is("nats-realtime"));
             });
@@ -75,10 +77,12 @@ class RealtimeTriggerTest extends NatsTest {
                 .username(Property.ofValue("kestra"))
                 .password(Property.ofValue("k3stra"))
                 .subject("kestra.realtime.trigger")
-                .from(Map.of(
-                    "headers", Map.of(SOME_HEADER_KEY, SOME_HEADER_VALUE),
-                    "data", "Hello Kestra From Produce Task"
-                ))
+                .from(
+                    Map.of(
+                        "headers", Map.of(SOME_HEADER_KEY, SOME_HEADER_VALUE),
+                        "data", "Hello Kestra From Produce Task"
+                    )
+                )
                 .build()
                 .run(runContextFactory.of());
 

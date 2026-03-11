@@ -1,5 +1,5 @@
 @PluginSubGroup(
-    description = "This sub-group of plugins contains tasks for interacting with NATS key-value stores.",categories = {
+    description = "This sub-group of plugins contains tasks for interacting with NATS key-value stores.", categories = {
         PluginSubGroup.PluginCategory.DATA,
         PluginSubGroup.PluginCategory.INFRASTRUCTURE
     }

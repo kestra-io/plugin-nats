@@ -1,32 +1,34 @@
 package io.kestra.plugin.nats.core;
 
-import io.kestra.core.models.executions.Execution;
-import io.kestra.core.models.property.Property;
-import io.kestra.core.queues.QueueFactoryInterface;
-import io.kestra.core.queues.QueueInterface;
-import io.kestra.core.repositories.LocalFlowRepositoryLoader;
-import io.kestra.core.runners.RunContextFactory;
-import io.kestra.core.storages.StorageInterface;
-import io.kestra.core.tenant.TenantService;
-import io.kestra.scheduler.AbstractScheduler;
-import io.kestra.core.utils.TestsUtils;
-import io.kestra.jdbc.runner.JdbcScheduler;
-import io.kestra.core.serializers.FileSerde;
-import io.kestra.core.services.FlowListenersInterface;
-import io.kestra.worker.DefaultWorker;
-import io.micronaut.context.ApplicationContext;
-import jakarta.inject.Inject;
-import jakarta.inject.Named;
-import org.hamcrest.Matchers;
-import org.junit.jupiter.api.Test;
-import reactor.core.publisher.Flux;
-
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+
+import org.hamcrest.Matchers;
+import org.junit.jupiter.api.Test;
+
+import io.kestra.core.models.executions.Execution;
+import io.kestra.core.models.property.Property;
+import io.kestra.core.queues.QueueFactoryInterface;
+import io.kestra.core.queues.QueueInterface;
+import io.kestra.core.repositories.LocalFlowRepositoryLoader;
+import io.kestra.core.runners.RunContextFactory;
+import io.kestra.core.serializers.FileSerde;
+import io.kestra.core.services.FlowListenersInterface;
+import io.kestra.core.storages.StorageInterface;
+import io.kestra.core.tenant.TenantService;
+import io.kestra.core.utils.TestsUtils;
+import io.kestra.jdbc.runner.JdbcScheduler;
+import io.kestra.scheduler.AbstractScheduler;
+import io.kestra.worker.DefaultWorker;
+
+import io.micronaut.context.ApplicationContext;
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
+import reactor.core.publisher.Flux;
 
 import static io.kestra.plugin.nats.core.ProduceTest.SOME_HEADER_KEY;
 import static io.kestra.plugin.nats.core.ProduceTest.SOME_HEADER_VALUE;
@@ -57,29 +59,34 @@ class TriggerTest extends NatsTest {
             .username(Property.ofValue("kestra"))
             .password(Property.ofValue("k3stra"))
             .subject("kestra.trigger")
-            .from(Map.of(
-                "headers", Map.of(SOME_HEADER_KEY, SOME_HEADER_VALUE),
-                "data", "Hello Kestra From Produce Task"
-            ))
+            .from(
+                Map.of(
+                    "headers", Map.of(SOME_HEADER_KEY, SOME_HEADER_VALUE),
+                    "data", "Hello Kestra From Produce Task"
+                )
+            )
             .build()
             .run(runContextFactory.of());
 
         Execution execution = triggerFlow();
 
-
-        BufferedReader inputStream = new BufferedReader(new InputStreamReader(storageInterface.get(TenantService.MAIN_TENANT, null, URI.create((String) execution.getTrigger().getVariables().get("uri")))));
+        BufferedReader inputStream = new BufferedReader(
+            new InputStreamReader(storageInterface.get(TenantService.MAIN_TENANT, null, URI.create((String) execution.getTrigger().getVariables().get("uri"))))
+        );
         List<Map<String, Object>> result = new ArrayList<>();
         FileSerde.reader(inputStream, r -> result.add((Map<String, Object>) r));
 
         assertThat(execution.getTrigger().getVariables().get("messagesCount"), is(1));
         assertThat(result.size(), is(1));
-        assertThat(result, Matchers.contains(
-            Matchers.allOf(
-                Matchers.hasEntry("subject", "kestra.trigger"),
-                Matchers.hasEntry(is("headers"), new HeaderMatcher(hasEntry(is(SOME_HEADER_KEY), contains(SOME_HEADER_VALUE)))),
-                Matchers.hasEntry("data", "Hello Kestra From Produce Task")
+        assertThat(
+            result, Matchers.contains(
+                Matchers.allOf(
+                    Matchers.hasEntry("subject", "kestra.trigger"),
+                    Matchers.hasEntry(is("headers"), new HeaderMatcher(hasEntry(is(SOME_HEADER_KEY), contains(SOME_HEADER_VALUE)))),
+                    Matchers.hasEntry("data", "Hello Kestra From Produce Task")
+                )
             )
-        ));
+        );
     }
 
     protected Execution triggerFlow() throws Exception {
@@ -95,7 +102,8 @@ class TriggerTest extends NatsTest {
                 );
             ) {
                 // wait for execution
-                Flux<Execution> receive = TestsUtils.receive(executionQueue, execution -> {
+                Flux<Execution> receive = TestsUtils.receive(executionQueue, execution ->
+                {
                     queueCount.countDown();
                     assertThat(execution.getLeft().getFlowId(), is("nats-listen"));
                 });

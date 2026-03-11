@@ -1,14 +1,11 @@
 package io.kestra.plugin.nats;
 
-import io.kestra.core.models.annotations.PluginProperty;
-import io.kestra.core.models.property.Property;
-import io.nats.client.api.DeliverPolicy;
-import io.swagger.v3.oas.annotations.media.Schema;
-
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import java.time.Duration;
+
+import io.kestra.core.models.property.Property;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.NotNull;
 
 public interface ConsumeInterface {
 

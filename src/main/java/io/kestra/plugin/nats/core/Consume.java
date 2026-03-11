@@ -1,22 +1,5 @@
 package io.kestra.plugin.nats.core;
 
-import io.kestra.core.exceptions.IllegalVariableEvaluationException;
-import io.kestra.core.models.annotations.Example;
-import io.kestra.core.models.annotations.Plugin;
-import io.kestra.core.models.property.Property;
-import io.kestra.core.models.tasks.RunnableTask;
-import io.kestra.core.runners.RunContext;
-import io.kestra.core.serializers.FileSerde;
-import io.kestra.plugin.nats.ConsumeInterface;
-import io.kestra.plugin.nats.core.NatsConnection;
-import io.nats.client.*;
-import io.nats.client.api.AckPolicy;
-import io.nats.client.api.ConsumerConfiguration;
-import io.nats.client.api.DeliverPolicy;
-import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.*;
-import lombok.experimental.SuperBuilder;
-
 import java.io.*;
 import java.net.URI;
 import java.time.Duration;
@@ -26,8 +9,24 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import io.kestra.core.exceptions.IllegalVariableEvaluationException;
+import io.kestra.core.models.annotations.Example;
+import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.property.Property;
+import io.kestra.core.models.tasks.RunnableTask;
+import io.kestra.core.runners.RunContext;
+import io.kestra.core.serializers.FileSerde;
+import io.kestra.plugin.nats.ConsumeInterface;
+
+import io.nats.client.*;
+import io.nats.client.api.AckPolicy;
+import io.nats.client.api.ConsumerConfiguration;
+import io.nats.client.api.DeliverPolicy;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
+
 import static io.kestra.core.utils.Rethrow.throwConsumer;
-import static io.kestra.core.utils.Rethrow.throwFunction;
 
 @SuperBuilder
 @ToString
@@ -39,7 +38,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     description = "Pulls messages from a JetStream subject with explicit acks and writes them to Kestra internal storage. Requires a stream matching the rendered subject; defaults: deliverPolicy=All, pollDuration=PT2S, batchSize=10. Stops when no messages, maxRecords, or maxDuration is reached."
 )
 @Plugin(
-    aliases = { "io.kestra.plugin.nats.Consume"},
+    aliases = { "io.kestra.plugin.nats.Consume" },
     examples = {
         @Example(
             title = "Consume messages from any topic subject matching the kestra.> wildcard, using user password authentication.",
@@ -119,11 +118,13 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
         JetStreamSubscription subscription = connection.jetStream(JetStreamOptions.DEFAULT_JS_OPTIONS).subscribe(
             runContext.render(subject),
             PullSubscribeOptions.builder()
-                .configuration(ConsumerConfiguration.builder()
-                    .ackPolicy(AckPolicy.Explicit)
-                    .deliverPolicy(runContext.render(deliverPolicy).as(DeliverPolicy.class).orElseThrow())
-                    .startTime(runContext.render(since).as(String.class).map(ZonedDateTime::parse).orElse(null))
-                    .build())
+                .configuration(
+                    ConsumerConfiguration.builder()
+                        .ackPolicy(AckPolicy.Explicit)
+                        .deliverPolicy(runContext.render(deliverPolicy).as(DeliverPolicy.class).orElseThrow())
+                        .startTime(runContext.render(since).as(String.class).map(ZonedDateTime::parse).orElse(null))
+                        .build()
+                )
                 .durable(runContext.render(durableId).as(String.class).orElse(null)).build()
         );
 
@@ -143,15 +144,18 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
                 batchSize = Optional.ofNullable(maxMessagesRemaining).map(max -> Math.min(batchSize, max)).orElse(batchSize);
                 messages = subscription.fetch(batchSize, runContext.render(pollDuration).as(Duration.class).orElseThrow());
 
-                messages.forEach(throwConsumer(message -> {
+                messages.forEach(throwConsumer(message ->
+                {
                     Map<Object, Object> map = new HashMap<>();
 
                     map.put("subject", message.getSubject());
-                    map.put("headers", Map.ofEntries(
-                        Optional.ofNullable(message.getHeaders())
-                            .map(headers -> headers.entrySet().toArray(Map.Entry[]::new))
-                            .orElse(new Map.Entry[0])
-                    ));
+                    map.put(
+                        "headers", Map.ofEntries(
+                            Optional.ofNullable(message.getHeaders())
+                                .map(headers -> headers.entrySet().toArray(Map.Entry[]::new))
+                                .orElse(new Map.Entry[0])
+                        )
+                    );
                     map.put("data", new String(message.getData()));
                     map.put("timestamp", message.metaData().timestamp().toInstant());
 
@@ -207,7 +211,6 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
         private URI uri;
 
     }
-
 
     @Getter
     @Builder

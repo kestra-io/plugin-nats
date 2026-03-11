@@ -1,14 +1,15 @@
 package io.kestra.plugin.nats.kv;
 
+import java.util.Map;
+
+import org.junit.jupiter.api.Test;
+
 import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
-import jakarta.inject.Inject;
-import org.hamcrest.Matchers;
-import org.junit.jupiter.api.Test;
 
-import java.util.Map;
+import jakarta.inject.Inject;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -16,41 +17,43 @@ import static org.hamcrest.Matchers.*;
 @KestraTest
 public class PutTest {
 
-	@Inject
-	protected RunContextFactory runContextFactory;
+    @Inject
+    protected RunContextFactory runContextFactory;
 
-	@Test
-	public void putPair() throws Exception {
-		String bucket = createBucket();
+    @Test
+    public void putPair() throws Exception {
+        String bucket = createBucket();
 
-		Put.Output putOutput = Put.builder()
-			.url("localhost:4222")
-			.username(Property.ofValue("kestra"))
-			.password(Property.ofValue("k3stra"))
-			.bucketName(bucket)
-			.values(Property.ofValue(
-				Map.of(
-					"key1", "value1",
-					"key2", 2L,
-					"key3", Map.of("subkey", "subvalue")
-				)
-			))
-			.build()
-			.run(runContextFactory.of());
+        Put.Output putOutput = Put.builder()
+            .url("localhost:4222")
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
+            .bucketName(bucket)
+            .values(
+                Property.ofValue(
+                    Map.of(
+                        "key1", "value1",
+                        "key2", 2L,
+                        "key3", Map.of("subkey", "subvalue")
+                    )
+                )
+            )
+            .build()
+            .run(runContextFactory.of());
 
-		assertThat(putOutput.getRevisions(), notNullValue());
-	}
+        assertThat(putOutput.getRevisions(), notNullValue());
+    }
 
-	public String createBucket() throws Exception {
-		CreateBucket.Output bucketOutput = CreateBucket.builder()
-			.url("localhost:4222")
-			.username(Property.ofValue("kestra"))
-			.password(Property.ofValue("k3stra"))
-			.name(IdUtils.create())
-			.build()
-			.run(runContextFactory.of());
+    public String createBucket() throws Exception {
+        CreateBucket.Output bucketOutput = CreateBucket.builder()
+            .url("localhost:4222")
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
+            .name(IdUtils.create())
+            .build()
+            .run(runContextFactory.of());
 
-		return bucketOutput.getBucket();
-	}
+        return bucketOutput.getBucket();
+    }
 
 }

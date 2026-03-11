@@ -1,5 +1,17 @@
 package io.kestra.plugin.nats.core;
 
+import java.time.Duration;
+import java.time.ZonedDateTime;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
+
+import org.reactivestreams.Publisher;
+
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.conditions.ConditionContext;
@@ -11,7 +23,7 @@ import io.kestra.core.models.triggers.TriggerContext;
 import io.kestra.core.models.triggers.TriggerOutput;
 import io.kestra.core.models.triggers.TriggerService;
 import io.kestra.core.runners.RunContext;
-import io.kestra.plugin.nats.core.NatsConnection;
+
 import io.nats.client.Connection;
 import io.nats.client.JetStreamOptions;
 import io.nats.client.JetStreamSubscription;
@@ -28,18 +40,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 import lombok.experimental.SuperBuilder;
-import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
-
-import java.time.Duration;
-import java.time.ZonedDateTime;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.stream.Collectors;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 
@@ -53,31 +54,31 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
     description = "Creates one execution per message fetched from a JetStream subject using explicit acks. Requires a stream for the rendered subject; defaults: deliverPolicy=All, batchSize=10. Use the batch [io.kestra.plugin.nats.Trigger](https://kestra.io/plugins/plugin-nats/triggers/io.kestra.plugin.nats.trigger) when you need windowed polling."
 )
 @Plugin(
-    aliases = { "io.kestra.plugin.nats.RealtimeTrigger"},
+    aliases = { "io.kestra.plugin.nats.RealtimeTrigger" },
     examples = {
         @Example(
             title = "Subscribe to a NATS subject, getting every message from the beginning of the subject on first trigger execution.",
             full = true,
             code = {
                 """
-                id: nats
-                namespace: company.team
+                    id: nats
+                    namespace: company.team
 
-                tasks:
-                  - id: log
-                    type: io.kestra.plugin.core.log.Log
-                    message: "{{ trigger.data }}"
+                    tasks:
+                      - id: log
+                        type: io.kestra.plugin.core.log.Log
+                        message: "{{ trigger.data }}"
 
-                triggers:
-                  - id: watch
-                    type: io.kestra.plugin.nats.core.RealtimeTrigger
-                    url: nats://localhost:4222
-                    username: nats_user
-                    password: nats_password
-                    subject: kestra.trigger
-                    durableId: natsTrigger
-                    deliverPolicy: All
-                """
+                    triggers:
+                      - id: watch
+                        type: io.kestra.plugin.nats.core.RealtimeTrigger
+                        url: nats://localhost:4222
+                        username: nats_user
+                        password: nats_password
+                        subject: kestra.trigger
+                        durableId: natsTrigger
+                        deliverPolicy: All
+                    """
             }
         )
     }
@@ -136,15 +137,17 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
             .map(throwFunction(sinceDate -> ZonedDateTime.parse(runContext.render(sinceDate).as(String.class).orElse(null))))
             .orElse(null);
 
-        return Flux.create(emitter -> {
+        return Flux.create(emitter ->
+        {
             try (Connection connection = task.connect(runContext)) {
                 // create options
                 PullSubscribeOptions options = PullSubscribeOptions.builder()
-                    .configuration(ConsumerConfiguration.builder()
-                        .ackPolicy(AckPolicy.Explicit)
-                        .deliverPolicy(runContext.render(deliverPolicy).as(DeliverPolicy.class).orElseThrow())
-                        .startTime(startTime)
-                        .build()
+                    .configuration(
+                        ConsumerConfiguration.builder()
+                            .ackPolicy(AckPolicy.Explicit)
+                            .deliverPolicy(runContext.render(deliverPolicy).as(DeliverPolicy.class).orElseThrow())
+                            .startTime(startTime)
+                            .build()
                     )
                     .durable(durableId)
                     .build();
@@ -158,7 +161,8 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
                 while (isActive.get()) {
                     List<Message> messages = subscription.fetch(batchSize, Duration.ofMillis(100));
 
-                    messages.forEach(message -> {
+                    messages.forEach(message ->
+                    {
                         Map<String, List<String>> headers;
                         if (message.getHeaders() == null) {
                             headers = Collections.emptyMap();
