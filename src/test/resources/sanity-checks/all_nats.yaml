@@ -1,0 +1,115 @@
+id: all_nats
+namespace: sanitychecks.plugin-nats
+
+variables:
+  username: kestra
+  password: k3stra
+
+tasks:
+  - id: init
+    type: io.kestra.plugin.core.output.OutputValues
+    values:
+      port: "{{ randomPort() }}"
+
+  - id: docker_start
+    type: io.kestra.plugin.docker.Run
+    containerImage: nats:2.10-alpine
+    entryPoint:
+      - /bin/sh
+      - -c
+    commands:
+      - nats-server --user {{ vars.username }} --pass {{ vars.password }} -js --store_dir /data
+    portBindings:
+      - "{{ outputs.init.values.port }}:4222"
+    wait: false
+
+  - id: wait_nats
+    type: io.kestra.plugin.core.flow.Sleep
+    duration: PT5S
+
+  - id: produce
+    type: io.kestra.plugin.nats.core.Produce
+    url: "nats://localhost:{{ outputs.init.values.port }}"
+    username: "{{ vars.username }}"
+    password: "{{ vars.password }}"
+    subject: "kestra.sanity.{{ execution.id }}.messages"
+    from:
+      - headers:
+          source: sanity-check
+        data: first-message
+      - data: second-message
+
+  - id: request
+    type: io.kestra.plugin.nats.core.Request
+    url: "nats://localhost:{{ outputs.init.values.port }}"
+    username: "{{ vars.username }}"
+    password: "{{ vars.password }}"
+    subject: "kestra.sanity.{{ execution.id }}.request"
+    from:
+      data: hello-from-kestra
+    requestTimeout: PT3S
+
+  - id: create_bucket
+    type: io.kestra.plugin.nats.kv.CreateBucket
+    url: "nats://localhost:{{ outputs.init.values.port }}"
+    username: "{{ vars.username }}"
+    password: "{{ vars.password }}"
+    name: "KESTRA_SANITY_{{ execution.id }}"
+    description: sanity bucket
+
+  - id: put
+    type: io.kestra.plugin.nats.kv.Put
+    url: "nats://localhost:{{ outputs.init.values.port }}"
+    username: "{{ vars.username }}"
+    password: "{{ vars.password }}"
+    bucketName: "KESTRA_SANITY_{{ execution.id }}"
+    values:
+      key1: value1
+      key2:
+        answer: 42
+
+  - id: get
+    type: io.kestra.plugin.nats.kv.Get
+    url: "nats://localhost:{{ outputs.init.values.port }}"
+    username: "{{ vars.username }}"
+    password: "{{ vars.password }}"
+    bucketName: "KESTRA_SANITY_{{ execution.id }}"
+    keys:
+      - key1
+      - key2
+
+  - id: delete
+    type: io.kestra.plugin.nats.kv.Delete
+    url: "nats://localhost:{{ outputs.init.values.port }}"
+    username: "{{ vars.username }}"
+    password: "{{ vars.password }}"
+    bucketName: "KESTRA_SANITY_{{ execution.id }}"
+    keys:
+      - key1
+
+  - id: get_deleted
+    type: io.kestra.plugin.nats.kv.Get
+    url: "nats://localhost:{{ outputs.init.values.port }}"
+    username: "{{ vars.username }}"
+    password: "{{ vars.password }}"
+    bucketName: "KESTRA_SANITY_{{ execution.id }}"
+    keys:
+      - key1
+
+  - id: assert
+    type: io.kestra.plugin.core.execution.Assert
+    conditions:
+      - "{{ outputs.produce.messagesCount == 2 }}"
+      - "{{ outputs.create_bucket.bucket == 'KESTRA_SANITY_' ~ execution.id }}"
+      - "{{ outputs.get.output.key1 == 'value1' }}"
+      - "{{ outputs.get.output.key2.answer == 42 }}"
+      - "{{ outputs.get_deleted.output | length == 0 }}"
+
+finally:
+  - id: purge
+    type: io.kestra.plugin.core.storage.PurgeCurrentExecutionFiles
+
+  - id: docker_stop
+    type: io.kestra.plugin.docker.Stop
+    containerId: "{{ outputs.docker_start.taskRunner.containerId }}"
+    kill: true
