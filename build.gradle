@@ -100,13 +100,15 @@ dependencies {
     testImplementation group: "io.kestra", name: "storage-local", version: kestraVersion
     testImplementation group: "io.kestra", name: "scheduler"
     testImplementation group: "io.kestra", name: "worker"
-    testImplementation "io.kestra.plugin:plugin-docker:1.2.3"
 
     // test
     testImplementation "org.junit.jupiter:junit-jupiter-engine"
     testImplementation "org.hamcrest:hamcrest"
     testImplementation "org.hamcrest:hamcrest-library"
     testImplementation "org.testcontainers:testcontainers:2.0.3"
+
+    // sanity checks
+    testImplementation "io.kestra.plugin:plugin-docker:1.2.3"
 }
 
 /**********************************************************************************************************************\
