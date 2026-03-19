@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -39,68 +40,73 @@ class ConsumeTest extends NatsTest {
 
     @Test
     void consumeMessageFromSubject() throws Exception {
-        Connection connection = Nats.connect(Options.builder().server("localhost:4222").userInfo("kestra", "k3stra").build());
-
-        AtomicReference<Instant> messageInstant = new AtomicReference<>();
-        CountDownLatch countDownLatch = new CountDownLatch(1);
-        JetStreamSubscription subscription = connection.jetStream().subscribe(
-            "kestra.consumeMessageFromSubject.topic", PullSubscribeOptions.builder()
-                .configuration(ConsumerConfiguration.builder().deliverPolicy(DeliverPolicy.New).build())
-                .build()
-        );
-
-        Executors.newSingleThreadExecutor().submit(Rethrow.throwRunnable(() ->
-        {
-            List<Message> messages = subscription.fetch(1, Duration.ofSeconds(2));
-            messageInstant.set(
-                // Compulsory to match ION-serialized instant precision
-                Instant.ofEpochMilli(messages.get(0).metaData().timestamp().toInstant().toEpochMilli())
+        try (Connection connection = Nats.connect(Options.builder().server("localhost:4222").userInfo("kestra", "k3stra").build())) {
+            AtomicReference<Instant> messageInstant = new AtomicReference<>();
+            CountDownLatch countDownLatch = new CountDownLatch(1);
+            JetStream jetStream = connection.jetStream();
+            JetStreamSubscription subscription = jetStream.subscribe(
+                "kestra.consumeMessageFromSubject.topic", PullSubscribeOptions.builder()
+                    .configuration(ConsumerConfiguration.builder().deliverPolicy(DeliverPolicy.New).build())
+                    .build()
             );
-            countDownLatch.countDown();
-            connection.close();
+
+            ExecutorService executorService = Executors.newSingleThreadExecutor();
+            try {
+                executorService.submit(Rethrow.throwRunnable(() ->
+                {
+                    List<Message> messages = subscription.fetch(1, Duration.ofSeconds(2));
+                    messageInstant.set(
+                        // Compulsory to match ION-serialized instant precision
+                        Instant.ofEpochMilli(messages.get(0).metaData().timestamp().toInstant().toEpochMilli())
+                    );
+                    countDownLatch.countDown();
+                }
+                ));
+
+                Headers headers = new Headers();
+                String expectedHeaderKey = "someHeaderKey";
+                String expectedHeaderValue = "someHeaderValue";
+                headers.add(expectedHeaderKey, expectedHeaderValue);
+                jetStream.publish("kestra.consumeMessageFromSubject.topic", headers, "Hello Kestra".getBytes());
+                jetStream.publish("kestra.consumeMessageFromSubject.anotherTopic", "Hello Again".getBytes());
+
+                Consume.Output output = Consume.builder()
+                    .url("localhost:4222")
+                    .username(Property.ofValue("kestra"))
+                    .password(Property.ofValue("k3stra"))
+                    .subject("kestra.consumeMessageFromSubject.>")
+                    .durableId(Property.ofValue("consumeMessageFromSubject-" + UUID.randomUUID()))
+                    .deliverPolicy(Property.ofValue(DeliverPolicy.LastPerSubject))
+                    .pollDuration(Property.ofValue(Duration.ofSeconds(3)))
+                    .batchSize(1)
+                    .build()
+                    .run(runContextFactory.of());
+
+                List<Map<String, Object>> result = toMessages(output);
+
+                countDownLatch.await();
+
+                assertThat(output.getMessagesCount(), is(2));
+                assertThat(result.size(), is(2));
+                assertThat(
+                    result, Matchers.contains(
+                        Matchers.<Map<String, Object>> allOf(
+                            Matchers.hasEntry("subject", "kestra.consumeMessageFromSubject.topic"),
+                            Matchers.hasEntry(is("headers"), new HeaderMatcher(hasEntry(is(expectedHeaderKey), contains(expectedHeaderValue)))),
+                            Matchers.hasEntry("data", "Hello Kestra"),
+                            Matchers.hasEntry("timestamp", messageInstant.get())
+                        ),
+                        Matchers.<Map<String, Object>> allOf(
+                            Matchers.hasEntry("subject", "kestra.consumeMessageFromSubject.anotherTopic"),
+                            Matchers.hasEntry(is("headers"), new HeaderMatcher(anEmptyMap())),
+                            Matchers.hasEntry("data", "Hello Again")
+                        )
+                    )
+                );
+            } finally {
+                executorService.shutdownNow();
+            }
         }
-        ));
-
-        Headers headers = new Headers();
-        String expectedHeaderKey = "someHeaderKey";
-        String expectedHeaderValue = "someHeaderValue";
-        headers.add(expectedHeaderKey, expectedHeaderValue);
-        connection.publish("kestra.consumeMessageFromSubject.topic", headers, "Hello Kestra".getBytes());
-        connection.publish("kestra.consumeMessageFromSubject.anotherTopic", "Hello Again".getBytes());
-
-        Consume.Output output = Consume.builder()
-            .url("localhost:4222")
-            .username(Property.ofValue("kestra"))
-            .password(Property.ofValue("k3stra"))
-            .subject("kestra.consumeMessageFromSubject.>")
-            .durableId(Property.ofValue("consumeMessageFromSubject-" + UUID.randomUUID()))
-            .deliverPolicy(Property.ofValue(DeliverPolicy.LastPerSubject))
-            .pollDuration(Property.ofValue(Duration.ofSeconds(3)))
-            .batchSize(1)
-            .build()
-            .run(runContextFactory.of());
-
-        List<Map<String, Object>> result = toMessages(output);
-
-        countDownLatch.await();
-
-        assertThat(output.getMessagesCount(), is(2));
-        assertThat(result.size(), is(2));
-        assertThat(
-            result, Matchers.contains(
-                Matchers.<Map<String, Object>> allOf(
-                    Matchers.hasEntry("subject", "kestra.consumeMessageFromSubject.topic"),
-                    Matchers.hasEntry(is("headers"), new HeaderMatcher(hasEntry(is(expectedHeaderKey), contains(expectedHeaderValue)))),
-                    Matchers.hasEntry("data", "Hello Kestra"),
-                    Matchers.hasEntry("timestamp", messageInstant.get())
-                ),
-                Matchers.<Map<String, Object>> allOf(
-                    Matchers.hasEntry("subject", "kestra.consumeMessageFromSubject.anotherTopic"),
-                    Matchers.hasEntry(is("headers"), new HeaderMatcher(anEmptyMap())),
-                    Matchers.hasEntry("data", "Hello Again")
-                )
-            )
-        );
     }
 
     @Test

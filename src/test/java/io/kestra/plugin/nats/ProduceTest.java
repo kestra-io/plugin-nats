@@ -168,6 +168,11 @@ class ProduceTest extends NatsTest {
             .build()
             .run(runContext);
 
+        // Core NATS publish is fire-and-forget; JetStream needs time to index the messages
+        // before the consumer can fetch them. Without this delay, the consumer may see only
+        // a subset of messages because JetStream hasn't finished persisting them yet.
+        Thread.sleep(1000);
+
         Consume.Output consumeOutput = Consume.builder()
             .url("localhost:4222")
             .username(Property.ofValue("kestra"))
@@ -175,7 +180,8 @@ class ProduceTest extends NatsTest {
             .subject(subject)
             .durableId(Property.ofValue("produceMultipleMessages-" + UUID.randomUUID()))
             .deliverPolicy(Property.ofValue(DeliverPolicy.All))
-            .pollDuration(Property.ofValue(Duration.ofSeconds(3)))
+            .pollDuration(Property.ofValue(Duration.ofSeconds(10)))
+            .maxRecords(Property.ofValue(2))
             .build()
             .run(runContextFactory.of());
 
