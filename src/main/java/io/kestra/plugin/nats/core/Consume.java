@@ -2,10 +2,12 @@ package io.kestra.plugin.nats.core;
 
 import java.io.*;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.*;
+import java.util.Base64;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -113,6 +115,13 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
     @Builder.Default
     private Property<DeliverPolicy> deliverPolicy = Property.ofValue(DeliverPolicy.All);
 
+    @Schema(
+        title = "Serialization type",
+        description = "How to decode message payload bytes. STRING decodes as UTF-8; BASE64 encodes bytes as a base64 string for lossless binary transport."
+    )
+    @Builder.Default
+    private Property<SerializationType> serializationType = Property.ofValue(SerializationType.STRING);
+
     public Output run(RunContext runContext) throws Exception {
         Connection connection = connect(runContext);
         JetStreamSubscription subscription = connection.jetStream(JetStreamOptions.DEFAULT_JS_OPTIONS).subscribe(
@@ -128,6 +137,7 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
                 .durable(runContext.render(durableId).as(String.class).orElse(null)).build()
         );
 
+        SerializationType st = runContext.render(serializationType).as(SerializationType.class).orElse(SerializationType.STRING);
         Instant pollStart = Instant.now();
         List<Message> messages;
         AtomicInteger total = new AtomicInteger();
@@ -156,7 +166,19 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
                                 .orElse(new Map.Entry[0])
                         )
                     );
-                    map.put("data", new String(message.getData()));
+                    String data;
+                    if (st == SerializationType.BINARY) {
+                        File tempFile = runContext.workingDir().createTempFile(".bin").toFile();
+                        try (FileOutputStream fos = new FileOutputStream(tempFile)) {
+                            fos.write(message.getData());
+                        }
+                        data = runContext.storage().putFile(tempFile).toString();
+                    } else if (st == SerializationType.BASE64) {
+                        data = Base64.getEncoder().encodeToString(message.getData());
+                    } else {
+                        data = new String(message.getData(), StandardCharsets.UTF_8);
+                    }
+                    map.put("data", data);
                     map.put("timestamp", message.metaData().timestamp().toInstant());
 
                     FileSerde.write(output, map);
@@ -230,7 +252,7 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
 
         @Schema(
             title = "Data",
-            description = "Message payload as UTF-8 string."
+            description = "Message payload. UTF-8 string (STRING), base64-encoded bytes (BASE64), or Kestra storage URI containing raw bytes (BINARY)."
         )
         private String data;
 
