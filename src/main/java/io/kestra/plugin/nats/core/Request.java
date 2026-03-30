@@ -2,6 +2,7 @@ package io.kestra.plugin.nats.core;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
@@ -83,6 +84,13 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
     @NotNull
     private Property<Duration> requestTimeout = Property.ofValue(Duration.ofMillis(5000));
 
+    @Schema(
+        title = "Serialization type",
+        description = "How to encode the request data and decode the reply. STRING uses UTF-8; BASE64 decodes input from base64 bytes before sending and encodes the reply as base64."
+    )
+    @Builder.Default
+    private Property<SerializationType> serializationType = Property.ofValue(SerializationType.STRING);
+
     @Override
     public Output run(RunContext runContext) throws Exception {
         try (Connection connection = this.connect(runContext)) {
@@ -92,15 +100,21 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
             // 2) Retrieve a single "message map" (headers + data)
             Map<String, Object> messageMap = retrieveMessage(runContext);
 
-            // 3) Build the NATS Message
-            Message natsMessage = buildRequestMessage(renderedSubject, messageMap);
+            // 3) Resolve serialization type
+            SerializationType st = runContext.render(this.serializationType).as(SerializationType.class).orElse(SerializationType.STRING);
 
-            // 4) Execute request-reply with the configured timeout
+            // 4) Build the NATS Message
+            Message natsMessage = buildRequestMessage(renderedSubject, messageMap, st);
+
+            // 5) Execute request-reply with the configured timeout
             Duration timeoutDuration = runContext.render(this.requestTimeout).as(Duration.class).orElse(null);
             Message reply = connection.request(natsMessage, timeoutDuration);
 
-            // 5) Convert the reply (if any) to a UTF-8 string
-            String response = (reply == null) ? null : new String(reply.getData(), StandardCharsets.UTF_8);
+            // 6) Convert the reply (if any) using the configured serialization type
+            String response = (reply == null) ? null :
+                (st == SerializationType.BASE64
+                    ? Base64.getEncoder().encodeToString(reply.getData())
+                    : new String(reply.getData(), StandardCharsets.UTF_8));
 
             connection.close();
 
@@ -118,7 +132,7 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
     }
 
     @SuppressWarnings("unchecked")
-    private Message buildRequestMessage(String subject, Map<String, Object> messageMap) throws JsonProcessingException {
+    private Message buildRequestMessage(String subject, Map<String, Object> messageMap, SerializationType st) throws JsonProcessingException {
         // Build NATS headers if present
         Headers headers = new Headers();
         Object headersObj = messageMap.getOrDefault("headers", Collections.emptyMap());
@@ -146,7 +160,9 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
         return NatsMessage.builder()
             .subject(subject)
             .headers(headers)
-            .data(data, StandardCharsets.UTF_8)
+            .data(st == SerializationType.BASE64
+                ? Base64.getDecoder().decode(data)
+                : data.getBytes(StandardCharsets.UTF_8))
             .build();
     }
 

@@ -1,11 +1,14 @@
 package io.kestra.plugin.nats.core;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -21,6 +24,14 @@ import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.tenant.TenantService;
 import io.kestra.core.utils.IdUtils;
 
+import io.nats.client.Connection;
+import io.nats.client.JetStream;
+import io.nats.client.JetStreamSubscription;
+import io.nats.client.Message;
+import io.nats.client.Nats;
+import io.nats.client.Options;
+import io.nats.client.PullSubscribeOptions;
+import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.DeliverPolicy;
 import jakarta.inject.Inject;
 
@@ -203,6 +214,69 @@ class ProduceTest extends NatsTest {
                 )
             )
         );
+    }
+
+    @Test
+    void produceBinaryData() throws Exception {
+        byte[] binary = {0x00, (byte) 0xFF, 0x42, 0x7F};
+        String base64Payload = Base64.getEncoder().encodeToString(binary);
+        String subject = generateSubject();
+
+        try (Connection connection = Nats.connect(Options.builder().server("localhost:4222").userInfo("kestra", "k3stra").build())) {
+            JetStream jetStream = connection.jetStream();
+            JetStreamSubscription subscription = jetStream.subscribe(
+                subject,
+                PullSubscribeOptions.builder()
+                    .configuration(ConsumerConfiguration.builder().deliverPolicy(DeliverPolicy.New).build())
+                    .build()
+            );
+
+            Produce.builder()
+                .url("localhost:4222")
+                .username(Property.ofValue("kestra"))
+                .password(Property.ofValue("k3stra"))
+                .subject(subject)
+                .from(Map.of("data", base64Payload))
+                .serializationType(Property.ofValue(SerializationType.BASE64))
+                .build()
+                .run(runContextFactory.of());
+
+            List<Message> messages = subscription.fetch(1, Duration.ofSeconds(3));
+            assertThat(messages.size(), is(1));
+            assertThat(Arrays.equals(messages.get(0).getData(), binary), is(true));
+        }
+    }
+
+    @Test
+    void produceBinaryMode() throws Exception {
+        byte[] binary = {0x00, (byte) 0xFF, 0x42, 0x7F};
+        String subject = generateSubject();
+
+        URI storageUri = storageInterface.put(TenantService.MAIN_TENANT, null, URI.create("kestra:///test/binary.bin"), new ByteArrayInputStream(binary));
+
+        try (Connection connection = Nats.connect(Options.builder().server("localhost:4222").userInfo("kestra", "k3stra").build())) {
+            JetStream jetStream = connection.jetStream();
+            JetStreamSubscription subscription = jetStream.subscribe(
+                subject,
+                PullSubscribeOptions.builder()
+                    .configuration(ConsumerConfiguration.builder().deliverPolicy(DeliverPolicy.New).build())
+                    .build()
+            );
+
+            Produce.builder()
+                .url("localhost:4222")
+                .username(Property.ofValue("kestra"))
+                .password(Property.ofValue("k3stra"))
+                .subject(subject)
+                .from(Map.of("data", storageUri.toString()))
+                .serializationType(Property.ofValue(SerializationType.BINARY))
+                .build()
+                .run(runContextFactory.of());
+
+            List<Message> messages = subscription.fetch(1, Duration.ofSeconds(3));
+            assertThat(messages.size(), is(1));
+            assertThat(Arrays.equals(messages.get(0).getData(), binary), is(true));
+        }
     }
 
     private static String generateSubject() {

@@ -1,7 +1,11 @@
 package io.kestra.plugin.nats.core;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.ZonedDateTime;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -100,6 +104,9 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
     private Property<DeliverPolicy> deliverPolicy = Property.ofValue(DeliverPolicy.All);
 
     @Builder.Default
+    private Property<SerializationType> serializationType = Property.ofValue(SerializationType.STRING);
+
+    @Builder.Default
     @Getter(AccessLevel.NONE)
     private final AtomicBoolean isActive = new AtomicBoolean(true);
 
@@ -122,6 +129,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
             .since(since)
             .batchSize(batchSize)
             .deliverPolicy(deliverPolicy)
+            .serializationType(serializationType)
             .build();
 
         return Flux
@@ -136,6 +144,8 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
         final ZonedDateTime startTime = Optional.ofNullable(since)
             .map(throwFunction(sinceDate -> ZonedDateTime.parse(runContext.render(sinceDate).as(String.class).orElse(null))))
             .orElse(null);
+
+        final SerializationType st = runContext.render(serializationType).as(SerializationType.class).orElse(SerializationType.STRING);
 
         return Flux.create(emitter ->
         {
@@ -161,8 +171,7 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
                 while (isActive.get()) {
                     List<Message> messages = subscription.fetch(batchSize, Duration.ofMillis(100));
 
-                    messages.forEach(message ->
-                    {
+                    for (Message message : messages) {
                         Map<String, List<String>> headers;
                         if (message.getHeaders() == null) {
                             headers = Collections.emptyMap();
@@ -175,16 +184,29 @@ public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerI
                                 );
                         }
 
+                        String data;
+                        if (st == SerializationType.BINARY) {
+                            File tempFile = runContext.workingDir().createTempFile(".bin").toFile();
+                            try (FileOutputStream fos = new FileOutputStream(tempFile)) {
+                                fos.write(message.getData());
+                            }
+                            data = runContext.storage().putFile(tempFile).toString();
+                        } else if (st == SerializationType.BASE64) {
+                            data = Base64.getEncoder().encodeToString(message.getData());
+                        } else {
+                            data = new String(message.getData(), StandardCharsets.UTF_8);
+                        }
+
                         Consume.NatsMessageOutput output = Consume.NatsMessageOutput.builder()
                             .subject(message.getSubject())
                             .headers(headers)
-                            .data(new String(message.getData()))
+                            .data(data)
                             .timestamp(message.metaData().timestamp().toInstant())
                             .build();
 
                         emitter.next(output);
                         message.ack(); // AckPolicy.Explicit
-                    });
+                    }
                     // The JetStreamSubscription#fetch method catches any thrown InterruptedException.
                     // Let's check if the thread was interrupted, and if we need to stop.
                     if (Thread.currentThread().isInterrupted()) {
