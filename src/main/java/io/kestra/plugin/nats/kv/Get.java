@@ -88,7 +88,7 @@ public class Get extends NatsConnection implements RunnableTask<Get.Output> {
         description = "Rendered bucket identifier to read from."
     )
     @NotBlank
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "main")
     private String bucketName;
 
     @Schema(
@@ -96,12 +96,14 @@ public class Get extends NatsConnection implements RunnableTask<Get.Output> {
         description = "Rendered list of keys used when no specific revisions are provided."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<List<String>> keys;
 
     @Schema(
         title = "Keys with revisions",
         description = "Optional map of key to revision; when set, supersedes the keys list."
     )
+    @PluginProperty(group = "connection")
     private Property<Map<String, Long>> keyRevisions;
 
     @Override

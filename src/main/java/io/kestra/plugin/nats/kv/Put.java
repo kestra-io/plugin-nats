@@ -64,7 +64,7 @@ public class Put extends NatsConnection implements RunnableTask<Put.Output> {
         description = "Rendered bucket identifier that must already exist."
     )
     @NotBlank
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "main")
     private String bucketName;
 
     @Schema(
@@ -72,6 +72,7 @@ public class Put extends NatsConnection implements RunnableTask<Put.Output> {
         description = "Map of keys to values rendered then serialized to JSON before being stored."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<Map<String, Object>> values;
 
     @Override

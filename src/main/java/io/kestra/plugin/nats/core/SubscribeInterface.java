@@ -17,7 +17,7 @@ public interface SubscribeInterface {
     @Schema(
         title = "Subject to subscribe to"
     )
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "main")
     @NotBlank
     @NotNull
     String getSubject();
@@ -25,6 +25,7 @@ public interface SubscribeInterface {
     @Schema(
         title = "ID used to attach the subscription to a durable one, allowing the subscription to start back from a previous position"
     )
+    @PluginProperty(group = "advanced")
     Property<String> getDurableId();
 
     @Schema(
@@ -35,12 +36,13 @@ public interface SubscribeInterface {
             "you will retrieve all messages starting from this date even after subsequent usage of this task." +
             "Must be a valid iso 8601 date."
     )
+    @PluginProperty(group = "advanced")
     Property<String> getSince();
 
     @Schema(
         title = "Messages are fetched by batch of given size."
     )
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "main")
     @NotNull
     @Min(1)
     Integer getBatchSize();
@@ -57,5 +59,6 @@ public interface SubscribeInterface {
             "- `LastPerSubject`: When first consuming messages, start with the latest one for each filtered subject currently in the stream.\n"
     )
     @NotNull
+    @PluginProperty(group = "main")
     Property<DeliverPolicy> getDeliverPolicy();
 }

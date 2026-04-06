@@ -24,6 +24,7 @@ import lombok.experimental.SuperBuilder;
 import reactor.core.publisher.Flux;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -104,6 +105,7 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
     )
     @NotBlank
     @NotNull
+    @PluginProperty(group = "main")
     private String subject;
 
     @Schema(
@@ -112,6 +114,7 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
         anyOf = { String.class, List.class, Map.class }
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Object from;
 
     public Output run(RunContext runContext) throws Exception {

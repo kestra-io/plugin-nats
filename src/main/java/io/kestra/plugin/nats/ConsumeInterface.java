@@ -6,6 +6,7 @@ import io.kestra.core.models.property.Property;
 
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
+import io.kestra.core.models.annotations.PluginProperty;
 
 public interface ConsumeInterface {
 
@@ -13,12 +14,14 @@ public interface ConsumeInterface {
         title = "Maximum records to consume",
         description = "Optional cap on total messages before stopping; implementations stop once this count is reached."
     )
+    @PluginProperty(group = "execution")
     Property<Integer> getMaxRecords();
 
     @Schema(
         title = "Maximum polling duration",
         description = "Soft wall-clock limit evaluated between fetches; polling stops once exceeded."
     )
+    @PluginProperty(group = "execution")
     Property<Duration> getMaxDuration();
 
     @Schema(
@@ -26,5 +29,6 @@ public interface ConsumeInterface {
         description = "Max wait per fetch when no messages are available; implementations default to PT2S."
     )
     @NotNull
+    @PluginProperty(group = "main")
     Property<Duration> getPollDuration();
 }
