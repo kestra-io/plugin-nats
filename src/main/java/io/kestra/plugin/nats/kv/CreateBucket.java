@@ -76,20 +76,21 @@ public class CreateBucket extends NatsConnection implements RunnableTask<CreateB
         description = "Rendered bucket identifier; must be unique within the NATS account."
     )
     @NotBlank
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "main")
     private String name;
 
     @Schema(
         title = "Bucket description",
         description = "Optional human-readable description stored with the bucket."
     )
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "advanced")
     private String description;
 
     @Schema(
         title = "Bucket metadata",
         description = "Optional string map persisted as NATS Key/Value metadata."
     )
+    @PluginProperty(group = "advanced")
     private Property<Map<String, String>> metadata;
 
     @Schema(
@@ -97,18 +98,21 @@ public class CreateBucket extends NatsConnection implements RunnableTask<CreateB
         description = "Maximum revisions retained for each key; defaults to 1 to keep only the latest value."
     )
     @Builder.Default
+    @PluginProperty(group = "connection")
     private Property<Integer> historyPerKey = Property.ofValue(1);
 
     @Schema(
         title = "Bucket size limit",
         description = "Optional maximum bucket size in bytes; leave unset to use the server default."
     )
+    @PluginProperty(group = "connection")
     private Property<Long> bucketSize;
 
     @Schema(
         title = "Value size limit",
         description = "Optional maximum size in bytes for any single entry in the bucket."
     )
+    @PluginProperty(group = "advanced")
     private Property<Long> valueSize;
 
     @Override

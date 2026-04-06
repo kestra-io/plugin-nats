@@ -12,7 +12,7 @@ public interface NatsConnectionInterface {
         title = "URL to connect to NATS server",
         description = "The format is (nats://)server_url:port. You can also provide a connection token like so: nats://token@server_url:port"
     )
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "main")
     @NotBlank
     @NotNull
     String getUrl();
@@ -20,20 +20,24 @@ public interface NatsConnectionInterface {
     @Schema(
         title = "Plaintext authentication username"
     )
+    @PluginProperty(group = "connection")
     Property<String> getUsername();
 
     @Schema(
         title = "Plaintext authentication password"
     )
+    @PluginProperty(group = "connection")
     Property<String> getPassword();
 
     @Schema(
         title = "Token authentification"
     )
+    @PluginProperty(group = "connection")
     Property<String> getToken();
 
     @Schema(
         title = "Credentials files authentification"
     )
+    @PluginProperty(group = "advanced")
     Property<String> getCreds();
 }

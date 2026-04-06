@@ -24,6 +24,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -66,6 +67,7 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
         description = "Rendered subject used for the request."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<String> subject;
 
     @Schema(
@@ -73,6 +75,7 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
         description = io.kestra.core.models.property.Data.From.DESCRIPTION
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Object from;
 
     @Schema(
@@ -81,6 +84,7 @@ public class Request extends NatsConnection implements RunnableTask<Request.Outp
     )
     @Builder.Default
     @NotNull
+    @PluginProperty(group = "execution")
     private Property<Duration> requestTimeout = Property.ofValue(Duration.ofMillis(5000));
 
     @Override

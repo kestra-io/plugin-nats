@@ -57,7 +57,7 @@ public class Delete extends NatsConnection implements RunnableTask<VoidOutput> {
         description = "Rendered bucket identifier that must already exist."
     )
     @NotBlank
-    @PluginProperty(dynamic = true)
+    @PluginProperty(dynamic = true, group = "main")
     private String bucketName;
 
     @Schema(
@@ -65,6 +65,7 @@ public class Delete extends NatsConnection implements RunnableTask<VoidOutput> {
         description = "List of keys rendered before deletion; each delete creates a tombstone and increments the revision."
     )
     @NotNull
+    @PluginProperty(group = "main")
     private Property<List<String>> keys;
 
     @Override

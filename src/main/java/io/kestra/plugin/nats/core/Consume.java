@@ -27,6 +27,7 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 
 import static io.kestra.core.utils.Rethrow.throwConsumer;
+import io.kestra.core.models.annotations.PluginProperty;
 
 @SuperBuilder
 @ToString
@@ -66,18 +67,21 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
         title = "Subject to consume",
         description = "Rendered subject or wildcard the JetStream stream is bound to."
     )
+    @PluginProperty(group = "main")
     private String subject;
 
     @Schema(
         title = "Durable consumer name",
         description = "Optional durable name to resume position between runs."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> durableId;
 
     @Schema(
         title = "Start time",
         description = "ISO-8601 date-time rendered and parsed to set the deliver start; ignored if null."
     )
+    @PluginProperty(group = "advanced")
     private Property<String> since;
 
     @Schema(
@@ -85,6 +89,7 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
         description = "Wait time per fetch; defaults to PT2S."
     )
     @Builder.Default
+    @PluginProperty(group = "execution")
     private Property<Duration> pollDuration = Property.ofValue(Duration.ofSeconds(2));
 
     @Schema(
@@ -92,18 +97,21 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
         description = "Maximum messages fetched per pull; defaults to 10."
     )
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Integer batchSize = 10;
 
     @Schema(
         title = "Max records",
         description = "Optional cap on total messages; stops once reached."
     )
+    @PluginProperty(group = "advanced")
     private Property<Integer> maxRecords;
 
     @Schema(
         title = "Max duration",
         description = "Optional wall-clock duration after which polling stops."
     )
+    @PluginProperty(group = "execution")
     private Property<Duration> maxDuration;
 
     @Schema(
@@ -111,6 +119,7 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
         description = "JetStream deliver policy; defaults to All."
     )
     @Builder.Default
+    @PluginProperty(group = "advanced")
     private Property<DeliverPolicy> deliverPolicy = Property.ofValue(DeliverPolicy.All);
 
     public Output run(RunContext runContext) throws Exception {
@@ -220,6 +229,7 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
             title = "Subject",
             description = "Subject of the consumed message."
         )
+        @PluginProperty(group = "main")
         private String subject;
 
         @Schema(
