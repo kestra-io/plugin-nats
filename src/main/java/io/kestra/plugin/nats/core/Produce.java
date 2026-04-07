@@ -1,14 +1,18 @@
 package io.kestra.plugin.nats.core;
 
+import java.io.InputStream;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.property.Data;
+import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
 import io.kestra.core.runners.RunContext;
 
@@ -117,15 +121,25 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
     @PluginProperty(group = "main")
     private Object from;
 
+    @Schema(
+        title = "Serialization type",
+        description = "How to encode the data field. STRING sends as UTF-8 string; BASE64 expects the data field to be a base64 string which is decoded to raw bytes before publishing."
+    )
+    @Builder.Default
+    private Property<SerializationType> serializationType = Property.ofValue(SerializationType.STRING);
+
     public Output run(RunContext runContext) throws Exception {
         Connection connection = connect(runContext);
+        SerializationType st = runContext.render(serializationType).as(SerializationType.class).orElse(SerializationType.STRING);
         int messagesCount = Data.from(this.from).read(runContext)
             .map(throwFunction(object ->
             {
                 connection.publish(
                     this.producerMessage(
                         runContext.render(this.subject),
-                        runContext.render((Map<String, Object>) object)
+                        runContext.render((Map<String, Object>) object),
+                        st,
+                        runContext
                     )
                 );
                 return 1;
@@ -142,16 +156,7 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
             .build();
     }
 
-    private Integer publish(RunContext runContext, Connection connection, Flux<Object> messagesFlowable) throws IllegalVariableEvaluationException {
-        return messagesFlowable.map(throwFunction(object ->
-        {
-            connection.publish(this.producerMessage(runContext.render(this.subject), runContext.render((Map<String, Object>) object)));
-            return 1;
-        })).reduce(Integer::sum)
-            .block();
-    }
-
-    private Message producerMessage(String subject, Map<String, Object> message) {
+    private Message producerMessage(String subject, Map<String, Object> message, SerializationType st, RunContext runContext) throws Exception {
         Headers headers = new Headers();
         ((Map<String, Object>) message.getOrDefault("headers", Collections.emptyMap())).forEach((headerKey, headerValue) ->
         {
@@ -162,10 +167,22 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
             }
         });
 
+        byte[] dataBytes;
+        if (st == SerializationType.BINARY) {
+            URI uri = URI.create((String) message.get("data"));
+            try (InputStream is = runContext.storage().getFile(uri)) {
+                dataBytes = is.readAllBytes();
+            }
+        } else if (st == SerializationType.BASE64) {
+            dataBytes = Base64.getDecoder().decode((String) message.get("data"));
+        } else {
+            dataBytes = ((String) message.get("data")).getBytes(StandardCharsets.UTF_8);
+        }
+
         return NatsMessage.builder()
             .subject(subject)
             .headers(headers)
-            .data((String) message.get("data"))
+            .data(dataBytes)
             .build();
     }
 
