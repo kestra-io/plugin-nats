@@ -77,6 +77,8 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @Builder.Default
     private Property<DeliverPolicy> deliverPolicy = Property.ofValue(DeliverPolicy.All);
     @Builder.Default
+    private Property<SerializationType> serializationType = Property.ofValue(SerializationType.STRING);
+    @Builder.Default
     private final Duration interval = Duration.ofSeconds(60);
 
     @Override
@@ -100,6 +102,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             .maxRecords(maxRecords)
             .maxDuration(maxDuration)
             .deliverPolicy(deliverPolicy)
+            .serializationType(serializationType)
             .build();
         Consume.Output run = task.run(runContext);
 

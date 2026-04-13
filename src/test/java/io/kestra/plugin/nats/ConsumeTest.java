@@ -1,9 +1,13 @@
 package io.kestra.plugin.nats.core;
 
+import java.io.InputStream;
+import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -19,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.storages.StorageInterface;
+import io.kestra.core.tenant.TenantService;
 import io.kestra.core.utils.Rethrow;
 
 import io.nats.client.*;
@@ -107,6 +112,63 @@ class ConsumeTest extends NatsTest {
                 executorService.shutdownNow();
             }
         }
+    }
+
+    @Test
+    void consumeBinaryMode() throws Exception {
+        byte[] binary = {0x00, (byte) 0xFF, 0x42, 0x7F};
+
+        try (Connection connection = Nats.connect(Options.builder().server("localhost:4222").userInfo("kestra", "k3stra").build())) {
+            connection.jetStream().publish("kestra.consumeBinaryMode.topic", binary);
+        }
+
+        Consume.Output output = Consume.builder()
+            .url("localhost:4222")
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
+            .subject("kestra.consumeBinaryMode.>")
+            .durableId(Property.ofValue("consumeBinaryMode-" + UUID.randomUUID()))
+            .deliverPolicy(Property.ofValue(DeliverPolicy.All))
+            .pollDuration(Property.ofValue(Duration.ofSeconds(3)))
+            .serializationType(Property.ofValue(SerializationType.BINARY))
+            .build()
+            .run(runContextFactory.of());
+
+        List<Map<String, Object>> result = toMessages(output);
+
+        assertThat(output.getMessagesCount(), is(1));
+        String uriStr = (String) result.get(0).get("data");
+        try (InputStream is = storageInterface.get(TenantService.MAIN_TENANT, null, URI.create(uriStr))) {
+            byte[] received = is.readAllBytes();
+            assertThat(Arrays.equals(received, binary), is(true));
+        }
+    }
+
+    @Test
+    void consumeBinaryData() throws Exception {
+        byte[] binary = {0x00, (byte) 0xFF, 0x42, 0x7F};
+        String expectedBase64 = Base64.getEncoder().encodeToString(binary);
+
+        try (Connection connection = Nats.connect(Options.builder().server("localhost:4222").userInfo("kestra", "k3stra").build())) {
+            connection.jetStream().publish("kestra.consumeBinaryData.topic", binary);
+        }
+
+        Consume.Output output = Consume.builder()
+            .url("localhost:4222")
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
+            .subject("kestra.consumeBinaryData.>")
+            .durableId(Property.ofValue("consumeBinaryData-" + UUID.randomUUID()))
+            .deliverPolicy(Property.ofValue(DeliverPolicy.All))
+            .pollDuration(Property.ofValue(Duration.ofSeconds(3)))
+            .serializationType(Property.ofValue(SerializationType.BASE64))
+            .build()
+            .run(runContextFactory.of());
+
+        List<Map<String, Object>> result = toMessages(output);
+
+        assertThat(output.getMessagesCount(), is(1));
+        assertThat(result.get(0).get("data"), is(expectedBase64));
     }
 
     @Test
