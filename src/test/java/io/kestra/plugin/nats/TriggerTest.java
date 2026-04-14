@@ -4,47 +4,27 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URI;
 import java.util.*;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
+import io.kestra.core.junit.annotations.EvaluateTrigger;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
-import io.kestra.core.queues.QueueFactoryInterface;
-import io.kestra.core.queues.QueueInterface;
-import io.kestra.core.repositories.LocalFlowRepositoryLoader;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.serializers.FileSerde;
-import io.kestra.core.services.FlowListenersInterface;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.tenant.TenantService;
-import io.kestra.core.utils.TestsUtils;
-import io.kestra.jdbc.runner.JdbcScheduler;
-import io.kestra.scheduler.AbstractScheduler;
-import io.kestra.worker.DefaultWorker;
 
-import io.micronaut.context.ApplicationContext;
+
 import jakarta.inject.Inject;
-import jakarta.inject.Named;
-import reactor.core.publisher.Flux;
 
 import static io.kestra.plugin.nats.core.ProduceTest.SOME_HEADER_KEY;
 import static io.kestra.plugin.nats.core.ProduceTest.SOME_HEADER_VALUE;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
-class TriggerTest extends NatsTest {
-    @Inject
-    private ApplicationContext applicationContext;
-    @Inject
-    private FlowListenersInterface flowListenersService;
-    @Inject
-    @Named(QueueFactoryInterface.EXECUTION_NAMED)
-    private QueueInterface<Execution> executionQueue;
-    @Inject
-    private LocalFlowRepositoryLoader localFlowRepositoryLoader;
+class TriggerTest extends io.kestra.plugin.nats.core.NatsTest {
     @Inject
     private RunContextFactory runContextFactory;
 
@@ -53,7 +33,12 @@ class TriggerTest extends NatsTest {
     }
 
     @Test
-    void simpleConsumeTrigger() throws Exception {
+    @EvaluateTrigger(flow = "flows/nats-listen.yml", triggerId = "watch")
+    void simpleConsumeTrigger(Optional<Execution> optionalExecution) throws Exception {
+        assertThat(optionalExecution.isPresent(), is(true));
+
+        Execution execution = optionalExecution.get();
+
         Produce.builder()
             .url("localhost:4222")
             .username(Property.ofValue("kestra"))
@@ -67,8 +52,6 @@ class TriggerTest extends NatsTest {
             )
             .build()
             .run(runContextFactory.of());
-
-        Execution execution = triggerFlow();
 
         BufferedReader inputStream = new BufferedReader(
             new InputStreamReader(storageInterface.get(TenantService.MAIN_TENANT, null, URI.create((String) execution.getTrigger().getVariables().get("uri"))))
@@ -87,37 +70,5 @@ class TriggerTest extends NatsTest {
                 )
             )
         );
-    }
-
-    protected Execution triggerFlow() throws Exception {
-        // mock flow listeners
-        CountDownLatch queueCount = new CountDownLatch(1);
-
-        // scheduler
-        try (DefaultWorker worker = applicationContext.createBean(DefaultWorker.class, UUID.randomUUID().toString(), 8, null)) {
-            try (
-                AbstractScheduler scheduler = new JdbcScheduler(
-                    this.applicationContext,
-                    this.flowListenersService
-                );
-            ) {
-                // wait for execution
-                Flux<Execution> receive = TestsUtils.receive(executionQueue, execution ->
-                {
-                    queueCount.countDown();
-                    assertThat(execution.getLeft().getFlowId(), is("nats-listen"));
-                });
-
-                worker.run();
-                scheduler.run();
-
-                localFlowRepositoryLoader.load(Objects.requireNonNull(this.getClass().getClassLoader().getResource("flows/nats-listen.yml")));
-
-                boolean await = queueCount.await(1, TimeUnit.MINUTES);
-                assertThat(await, is(true));
-
-                return receive.blockLast();
-            }
-        }
     }
 }
