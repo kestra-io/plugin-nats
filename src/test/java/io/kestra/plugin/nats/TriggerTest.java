@@ -7,6 +7,7 @@ import java.util.*;
 
 import io.kestra.core.junit.annotations.EvaluateTrigger;
 import org.hamcrest.Matchers;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.kestra.core.models.executions.Execution;
@@ -15,7 +16,6 @@ import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.tenant.TenantService;
-
 
 import jakarta.inject.Inject;
 
@@ -32,13 +32,8 @@ class TriggerTest extends io.kestra.plugin.nats.core.NatsTest {
         super(storageInterface);
     }
 
-    @Test
-    @EvaluateTrigger(flow = "flows/nats-listen.yml", triggerId = "watch")
-    void simpleConsumeTrigger(Optional<Execution> optionalExecution) throws Exception {
-        assertThat(optionalExecution.isPresent(), is(true));
-
-        Execution execution = optionalExecution.get();
-
+    @BeforeEach
+    void setUp() throws Exception {
         Produce.builder()
             .url("localhost:4222")
             .username(Property.ofValue("kestra"))
@@ -52,6 +47,14 @@ class TriggerTest extends io.kestra.plugin.nats.core.NatsTest {
             )
             .build()
             .run(runContextFactory.of());
+    }
+
+    @Test
+    @EvaluateTrigger(flow = "flows/nats-listen.yml", triggerId = "watch")
+    void simpleConsumeTrigger(Optional<Execution> optionalExecution) throws Exception {
+        assertThat(optionalExecution.isPresent(), is(true));
+
+        Execution execution = optionalExecution.get();
 
         BufferedReader inputStream = new BufferedReader(
             new InputStreamReader(storageInterface.get(TenantService.MAIN_TENANT, null, URI.create((String) execution.getTrigger().getVariables().get("uri"))))
