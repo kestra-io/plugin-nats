@@ -1,6 +1,6 @@
 group: io.kestra.plugin.nats.kv
 name: "kv"
-title: "Kv"
+title: "NATS KV"
 description: "Tasks that interact with NATS key-value buckets."
 body: "Provide NATS connection settings, bucket names, keys, and values to put, get, list, or delete entries, enabling lightweight state sharing across workflows."
 videos: []
