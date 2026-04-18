@@ -25,7 +25,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
 
 @KestraTest(startRunner = true, startScheduler = true)
-class RealtimeTriggerTest extends NatsTest {
+class RealtimeTriggerTest extends io.kestra.plugin.nats.core.NatsTest {
     @Inject
     @Named(QueueFactoryInterface.EXECUTION_NAMED)
     private QueueInterface<Execution> executionQueue;
