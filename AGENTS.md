@@ -7,8 +7,9 @@
 
 ## Why
 
-- This plugin integrates Kestra with NATS Core.
-- It provides tasks that publish and subscribe to NATS subjects with triggers.
+- What user problem does this solve? Teams need to publish, subscribe, and work with NATS messaging from orchestrated workflows instead of relying on manual console work, ad hoc scripts, or disconnected schedulers.
+- Why would a team adopt this plugin in a workflow? It keeps NATS steps in the same Kestra flow as upstream preparation, approvals, retries, notifications, and downstream systems.
+- What operational/business outcome does it enable? It reduces manual handoffs and fragmented tooling while improving reliability, traceability, and delivery speed for processes that depend on NATS.
 
 ## How
 
