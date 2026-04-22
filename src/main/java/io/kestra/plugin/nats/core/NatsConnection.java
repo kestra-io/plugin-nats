@@ -1,5 +1,6 @@
 package io.kestra.plugin.nats.core;
 
+import io.kestra.core.models.annotations.PluginProperty;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -28,10 +29,13 @@ import lombok.experimental.SuperBuilder;
 public abstract class NatsConnection extends Task implements NatsConnectionInterface {
     protected String url;
 
+    @PluginProperty(secret = true)
     protected Property<String> username;
 
+    @PluginProperty(secret = true)
     protected Property<String> password;
 
+    @PluginProperty(secret = true)
     protected Property<String> token;
 
     protected Property<String> creds;

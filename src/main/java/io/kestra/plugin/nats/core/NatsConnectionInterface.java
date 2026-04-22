@@ -20,19 +20,19 @@ public interface NatsConnectionInterface {
     @Schema(
         title = "Plaintext authentication username"
     )
-    @PluginProperty(group = "connection")
+    @PluginProperty(secret = true, group = "connection")
     Property<String> getUsername();
 
     @Schema(
         title = "Plaintext authentication password"
     )
-    @PluginProperty(group = "connection")
+    @PluginProperty(secret = true, group = "connection")
     Property<String> getPassword();
 
     @Schema(
         title = "Token authentification"
     )
-    @PluginProperty(group = "connection")
+    @PluginProperty(secret = true, group = "connection")
     Property<String> getToken();
 
     @Schema(

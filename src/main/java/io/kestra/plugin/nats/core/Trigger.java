@@ -1,5 +1,6 @@
 package io.kestra.plugin.nats.core;
 
+import io.kestra.core.models.annotations.PluginProperty;
 import java.time.Duration;
 import java.util.Optional;
 
@@ -61,8 +62,11 @@ import lombok.experimental.SuperBuilder;
 )
 public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Consume.Output>, NatsConnectionInterface, ConsumeInterface, SubscribeInterface {
     private String url;
+    @PluginProperty(secret = true)
     private Property<String> username;
+    @PluginProperty(secret = true)
     private Property<String> password;
+    @PluginProperty(secret = true)
     private Property<String> token;
     private Property<String> creds;
     private String subject;
