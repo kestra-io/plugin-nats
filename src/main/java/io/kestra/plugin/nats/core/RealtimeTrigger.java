@@ -1,5 +1,6 @@
 package io.kestra.plugin.nats.core;
 
+import io.kestra.core.models.annotations.PluginProperty;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.Collections;
@@ -85,8 +86,11 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 )
 public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerInterface, TriggerOutput<Consume.NatsMessageOutput>, NatsConnectionInterface, SubscribeInterface {
     private String url;
+    @PluginProperty(secret = true)
     private Property<String> username;
+    @PluginProperty(secret = true)
     private Property<String> password;
+    @PluginProperty(secret = true)
     private Property<String> token;
     private Property<String> creds;
     private String subject;
