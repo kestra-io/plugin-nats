@@ -7,7 +7,6 @@ import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.models.tasks.RunnableTask;
-import io.kestra.core.models.tasks.VoidOutput;
 import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.nats.core.NatsConnection;
 
@@ -50,7 +49,7 @@ import lombok.experimental.SuperBuilder;
         ),
     }
 )
-public class Delete extends NatsConnection implements RunnableTask<VoidOutput> {
+public class Delete extends NatsConnection implements RunnableTask<Delete.Output> {
 
     @Schema(
         title = "Bucket name",
@@ -69,16 +68,24 @@ public class Delete extends NatsConnection implements RunnableTask<VoidOutput> {
     private Property<List<String>> keys;
 
     @Override
-    public VoidOutput run(RunContext runContext) throws Exception {
+    public Output run(RunContext runContext) throws Exception {
         try (Connection connection = super.connect(runContext)) {
             KeyValue keyValue = connection.keyValue(runContext.render(this.bucketName));
 
+            int count = 0;
             for (String key : runContext.render(this.keys).asList(String.class)) {
                 keyValue.delete(key);
+                count++;
             }
 
-            return new VoidOutput();
+            return Output.builder().deletedCount(count).build();
         }
     }
 
+    @Builder
+    @Getter
+    public static class Output implements io.kestra.core.models.tasks.Output {
+        @Schema(title = "Number of keys deleted")
+        private final int deletedCount;
+    }
 }
