@@ -29,13 +29,13 @@ import lombok.experimental.SuperBuilder;
 public abstract class NatsConnection extends Task implements NatsConnectionInterface {
     protected String url;
 
-    @PluginProperty(secret = true)
+    @PluginProperty(secret = true, group = "connection")
     protected Property<String> username;
 
-    @PluginProperty(secret = true)
+    @PluginProperty(secret = true, group = "connection")
     protected Property<String> password;
 
-    @PluginProperty(secret = true)
+    @PluginProperty(secret = true, group = "connection")
     protected Property<String> token;
 
     protected Property<String> creds;

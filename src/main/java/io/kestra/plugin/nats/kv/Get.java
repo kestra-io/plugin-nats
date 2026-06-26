@@ -51,7 +51,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                     type: io.kestra.plugin.nats.kv.Get
                     url: nats://localhost:4222
                     username: nats_user
-                    password: nats_passwd
+                    password: "{{ secret('NATS_PASSWORD') }}"
                     bucketName: my_bucket
                     keys:
                       - key1
@@ -62,19 +62,19 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
             title = "Gets a value from a NATS Key/Value bucket by keys with revisions.",
             full = true,
             code = """
-                   id: nats_kv_get
-                            namespace: company.team
+                id: nats_kv_get
+                namespace: company.team
 
-                            tasks:
-                              - id: get
-                                type: io.kestra.plugin.nats.kv.Get
+                tasks:
+                  - id: get
+                    type: io.kestra.plugin.nats.kv.Get
                     url: nats://localhost:4222
-                                username: nats_user
-                                password: nats_passwd
-                                bucketName: my_bucket
-                                keyRevisions:
-                                  key1: 1
-                                  key2: 3
+                    username: nats_user
+                    password: "{{ secret('NATS_PASSWORD') }}"
+                    bucketName: my_bucket
+                    keyRevisions:
+                      key1: 1
+                      key2: 3
                 """
         ),
     }

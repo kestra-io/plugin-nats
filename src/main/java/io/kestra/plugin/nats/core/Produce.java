@@ -50,7 +50,7 @@ import io.kestra.core.models.annotations.PluginProperty;
                     type: io.kestra.plugin.nats.core.Produce
                     url: nats://localhost:4222
                     username: nats_user
-                    password: nats_password
+                    password: "{{ secret('NATS_PASSWORD') }}"
                     subject: kestra.publish
                     from:
                       headers:
@@ -70,7 +70,7 @@ import io.kestra.core.models.annotations.PluginProperty;
                     type: io.kestra.plugin.nats.core.Produce
                     url: nats://localhost:4222
                     username: nats_user
-                    password: nats_password
+                    password: "{{ secret('NATS_PASSWORD') }}"
                     subject: kestra.publish
                     from:
                       - headers:
@@ -91,7 +91,7 @@ import io.kestra.core.models.annotations.PluginProperty;
                     type: io.kestra.plugin.nats.core.Produce
                     url: nats://localhost:4222
                     username: nats_user
-                    password: nats_password
+                    password: "{{ secret('NATS_PASSWORD') }}"
                     subject: kestra.publish
                     from: "{{ outputs.some_task_with_output_file.uri }}"
                 """
