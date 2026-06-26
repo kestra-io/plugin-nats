@@ -53,7 +53,7 @@ import io.kestra.core.models.annotations.PluginProperty;
                     type: io.kestra.plugin.nats.core.Consume
                     url: nats://localhost:4222
                     username: nats_user
-                    password: nats_password
+                    password: "{{ secret('NATS_PASSWORD') }}"
                     subject: kestra.>
                     durableId: someDurableId
                     pollDuration: PT5S

@@ -50,7 +50,7 @@ import io.kestra.core.models.annotations.PluginProperty;
                     type: io.kestra.plugin.nats.core.Request
                     url: nats://localhost:4222
                     username: nats_user
-                    password: nats_password
+                    password: "{{ secret('NATS_PASSWORD') }}"
                     subject: "greet.bob"
                     from:
                       headers:

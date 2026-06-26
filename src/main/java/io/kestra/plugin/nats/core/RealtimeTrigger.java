@@ -75,7 +75,7 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
                         type: io.kestra.plugin.nats.core.RealtimeTrigger
                         url: nats://localhost:4222
                         username: nats_user
-                        password: nats_password
+                        password: "{{ secret('NATS_PASSWORD') }}"
                         subject: kestra.trigger
                         durableId: natsTrigger
                         deliverPolicy: All
@@ -86,11 +86,11 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 )
 public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerInterface, TriggerOutput<Consume.NatsMessageOutput>, NatsConnectionInterface, SubscribeInterface {
     private String url;
-    @PluginProperty(secret = true)
+    @PluginProperty(secret = true, group = "connection")
     private Property<String> username;
-    @PluginProperty(secret = true)
+    @PluginProperty(secret = true, group = "connection")
     private Property<String> password;
-    @PluginProperty(secret = true)
+    @PluginProperty(secret = true, group = "connection")
     private Property<String> token;
     private Property<String> creds;
     private String subject;

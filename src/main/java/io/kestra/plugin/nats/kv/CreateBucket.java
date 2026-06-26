@@ -42,7 +42,7 @@ import lombok.experimental.SuperBuilder;
                     type: io.kestra.plugin.nats.kv.CreateBucket
                     url: nats://localhost:4222
                     username: nats_user
-                    password: nats_passwd
+                    password: "{{ secret('NATS_PASSWORD') }}"
                     name: my_bucket
                 """
         ),
@@ -58,7 +58,7 @@ import lombok.experimental.SuperBuilder;
                     type: io.kestra.plugin.nats.kv.CreateBucket
                     url: nats://localhost:4222
                     username: nats_user
-                    password: nats_passwd
+                    password: "{{ secret('NATS_PASSWORD') }}"
                     name: my_bucket
                     description: my bucket for special purposes
                     historyPerKey: 2

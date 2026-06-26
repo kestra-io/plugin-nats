@@ -50,7 +50,7 @@ import lombok.experimental.SuperBuilder;
                         type: io.kestra.plugin.nats.core.Trigger
                         url: nats://localhost:4222
                         username: nats_user
-                        password: nats_password
+                        password: "{{ secret('NATS_PASSWORD') }}"
                         subject: kestra.trigger
                         durableId: natsTrigger
                         deliverPolicy: All
@@ -62,11 +62,11 @@ import lombok.experimental.SuperBuilder;
 )
 public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Consume.Output>, NatsConnectionInterface, ConsumeInterface, SubscribeInterface {
     private String url;
-    @PluginProperty(secret = true)
+    @PluginProperty(secret = true, group = "connection")
     private Property<String> username;
-    @PluginProperty(secret = true)
+    @PluginProperty(secret = true, group = "connection")
     private Property<String> password;
-    @PluginProperty(secret = true)
+    @PluginProperty(secret = true, group = "connection")
     private Property<String> token;
     private Property<String> creds;
     private String subject;
