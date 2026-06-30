@@ -62,12 +62,17 @@ import lombok.experimental.SuperBuilder;
 )
 public class Trigger extends AbstractTrigger implements PollingTriggerInterface, TriggerOutput<Consume.Output>, NatsConnectionInterface, ConsumeInterface, SubscribeInterface {
     private String url;
+    @ToString.Exclude
     @PluginProperty(secret = true, group = "connection")
     private Property<String> username;
+    @ToString.Exclude
     @PluginProperty(secret = true, group = "connection")
     private Property<String> password;
+    @ToString.Exclude
     @PluginProperty(secret = true, group = "connection")
     private Property<String> token;
+    @ToString.Exclude
+    @PluginProperty(secret = true)
     private Property<String> creds;
     private String subject;
     private Property<String> durableId;

@@ -86,12 +86,17 @@ import static io.kestra.core.utils.Rethrow.throwFunction;
 )
 public class RealtimeTrigger extends AbstractTrigger implements RealtimeTriggerInterface, TriggerOutput<Consume.NatsMessageOutput>, NatsConnectionInterface, SubscribeInterface {
     private String url;
+    @ToString.Exclude
     @PluginProperty(secret = true, group = "connection")
     private Property<String> username;
+    @ToString.Exclude
     @PluginProperty(secret = true, group = "connection")
     private Property<String> password;
+    @ToString.Exclude
     @PluginProperty(secret = true, group = "connection")
     private Property<String> token;
+    @ToString.Exclude
+    @PluginProperty(secret = true)
     private Property<String> creds;
     private String subject;
     private Property<String> durableId;
