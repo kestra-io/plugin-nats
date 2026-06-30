@@ -72,7 +72,7 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
     @PluginProperty(secret = true, group = "connection")
     private Property<String> token;
     @ToString.Exclude
-    @PluginProperty(secret = true)
+    @PluginProperty(group = "connection", secret = true)
     private Property<String> creds;
     private String subject;
     private Property<String> durableId;

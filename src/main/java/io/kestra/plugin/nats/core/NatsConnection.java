@@ -42,7 +42,7 @@ public abstract class NatsConnection extends Task implements NatsConnectionInter
     protected Property<String> token;
 
     @ToString.Exclude
-    @PluginProperty(secret = true)
+    @PluginProperty(group = "connection", secret = true)
     protected Property<String> creds;
 
     protected Connection connect(RunContext runContext) throws IOException, InterruptedException, IllegalVariableEvaluationException, NoSuchAlgorithmException {
