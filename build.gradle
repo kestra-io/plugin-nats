@@ -110,7 +110,7 @@ dependencies {
     testImplementation "org.testcontainers:testcontainers:2.0.5"
 
     // sanity checks
-    testImplementation "io.kestra.plugin:plugin-docker:1.5.1"
+    testImplementation "io.kestra.plugin:plugin-docker:1.5.2"
 }
 
 /**********************************************************************************************************************\
