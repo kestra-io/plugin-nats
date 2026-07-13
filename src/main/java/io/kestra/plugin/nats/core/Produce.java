@@ -1,5 +1,6 @@
 package io.kestra.plugin.nats.core;
 
+import java.time.Duration;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -50,7 +51,7 @@ import io.kestra.core.models.annotations.PluginProperty;
                     type: io.kestra.plugin.nats.core.Produce
                     url: nats://localhost:4222
                     username: nats_user
-                    password: nats_password
+                    password: "{{ secret('NATS_PASSWORD') }}"
                     subject: kestra.publish
                     from:
                       headers:
@@ -70,7 +71,7 @@ import io.kestra.core.models.annotations.PluginProperty;
                     type: io.kestra.plugin.nats.core.Produce
                     url: nats://localhost:4222
                     username: nats_user
-                    password: nats_password
+                    password: "{{ secret('NATS_PASSWORD') }}"
                     subject: kestra.publish
                     from:
                       - headers:
@@ -91,7 +92,7 @@ import io.kestra.core.models.annotations.PluginProperty;
                     type: io.kestra.plugin.nats.core.Produce
                     url: nats://localhost:4222
                     username: nats_user
-                    password: nats_password
+                    password: "{{ secret('NATS_PASSWORD') }}"
                     subject: kestra.publish
                     from: "{{ outputs.some_task_with_output_file.uri }}"
                 """
@@ -134,7 +135,11 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
             .blockOptional()
             .orElse(0);
 
-        connection.flushBuffer();
+        // flush(Duration) sends a PING and blocks for the PONG, guaranteeing the server has
+        // processed every prior PUB (and, since a connection is processed in order, that
+        // JetStream has ingested them) before we close. flushBuffer() only pushes bytes into
+        // the socket and can race with close(), silently dropping the last message.
+        connection.flush(Duration.ofSeconds(5));
         connection.close();
 
         return Output.builder()

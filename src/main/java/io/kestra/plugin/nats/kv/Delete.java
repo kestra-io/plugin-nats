@@ -40,7 +40,7 @@ import lombok.experimental.SuperBuilder;
                     type: io.kestra.plugin.nats.kv.Delete
                     url: nats://localhost:4222
                     username: nats_user
-                    password: nats_passwd
+                    password: "{{ secret('NATS_PASSWORD') }}"
                     bucketName: my_bucket
                     keys:
                       - key1

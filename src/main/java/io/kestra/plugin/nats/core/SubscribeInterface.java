@@ -29,7 +29,7 @@ public interface SubscribeInterface {
     Property<String> getDurableId();
 
     @Schema(
-        title = "Minimum message timestamp to start consumption from.",
+        title = "Minimum message timestamp to start consumption from",
         description = "By default, we consume all messages from the subjects starting from beginning of logs or " +
             "depending on the current durable id position. You can also provide an arbitrary start time to " +
             "get all messages since this date for a new durable id. Note that if you don't provide a durable id, " +
@@ -40,7 +40,7 @@ public interface SubscribeInterface {
     Property<String> getSince();
 
     @Schema(
-        title = "Messages are fetched by batch of given size."
+        title = "Messages are fetched by batch of given size"
     )
     @PluginProperty(dynamic = true, group = "main")
     @NotNull
@@ -48,7 +48,7 @@ public interface SubscribeInterface {
     Integer getBatchSize();
 
     @Schema(
-        title = "The point in the stream to receive messages from.",
+        title = "The point in the stream to receive messages from",
         description = "Possible settings are:\n" +
             "- `All`: The default policy. The consumer will start receiving from the earliest available message.\n" +
             "- `Last`: When first consuming messages, the consumer will start receiving messages with the last message added to the stream, or the last message in the stream that matches the consumer's filter subject if defined.\n"

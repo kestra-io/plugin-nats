@@ -38,6 +38,6 @@ public interface NatsConnectionInterface {
     @Schema(
         title = "Credentials files authentification"
     )
-    @PluginProperty(group = "advanced")
+    @PluginProperty(secret = true, group = "advanced")
     Property<String> getCreds();
 }

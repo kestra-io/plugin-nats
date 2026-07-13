@@ -29,15 +29,20 @@ import lombok.experimental.SuperBuilder;
 public abstract class NatsConnection extends Task implements NatsConnectionInterface {
     protected String url;
 
-    @PluginProperty(secret = true)
+    @ToString.Exclude
+    @PluginProperty(secret = true, group = "connection")
     protected Property<String> username;
 
-    @PluginProperty(secret = true)
+    @ToString.Exclude
+    @PluginProperty(secret = true, group = "connection")
     protected Property<String> password;
 
-    @PluginProperty(secret = true)
+    @ToString.Exclude
+    @PluginProperty(secret = true, group = "connection")
     protected Property<String> token;
 
+    @ToString.Exclude
+    @PluginProperty(group = "connection", secret = true)
     protected Property<String> creds;
 
     protected Connection connect(RunContext runContext) throws IOException, InterruptedException, IllegalVariableEvaluationException, NoSuchAlgorithmException {
