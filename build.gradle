@@ -56,7 +56,7 @@ dependencies {
     compileOnly group: "io.kestra", name: "core", version: kestraVersion
 
     // libs included in the final jar
-    api group: 'io.nats', name: 'jnats', version: '2.25.3'
+    api group: 'io.nats', name: 'jnats', version: '2.26.0'
 }
 
 
