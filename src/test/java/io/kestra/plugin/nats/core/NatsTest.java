@@ -1,5 +1,6 @@
 package io.kestra.plugin.nats.core;
 
+import java.io.InputStream;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -28,9 +29,9 @@ class NatsTest {
     }
 
     protected List<Map<String, Object>> toMessages(Consume.Output output) throws IOException {
-        BufferedReader inputStream = new BufferedReader(new InputStreamReader(storageInterface.get(TenantService.MAIN_TENANT, null, output.getUri())));
+        InputStream inputStream = storageInterface.get(TenantService.MAIN_TENANT, null, output.getUri());
         List<Map<String, Object>> result = new ArrayList<>();
-        FileSerde.reader(inputStream, r -> result.add((Map<String, Object>) r));
+        FileSerde.read(inputStream, r -> result.add((Map<String, Object>) r));
         return result;
     }
 
