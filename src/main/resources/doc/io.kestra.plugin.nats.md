@@ -4,7 +4,7 @@ Publish and consume messages on NATS subjects, make request-reply calls, and man
 
 ## Common properties
 
-Set `url` to your NATS server URL (e.g. `nats://localhost:4222`). For authentication, use one of: `username` and `password` for plaintext auth, `token` for token auth, or `creds` for a NATS credentials file. Store secrets in [secrets](https://kestra.io/docs/concepts/secret) and apply connection properties globally with [plugin defaults](https://kestra.io/docs/workflow-components/plugin-defaults).
+Set `url` to your NATS server URL (e.g. `nats://localhost:4222`). For authentication, use one of: `username` and `password` for plaintext auth, `token` for token auth, or `creds` for a NATS credentials file. Store secrets in [secrets](https://kestra.io/docs/concepts/secret) and set connection properties on each task.
 
 ## Tasks
 
