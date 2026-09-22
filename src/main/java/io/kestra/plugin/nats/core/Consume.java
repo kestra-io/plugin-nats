@@ -6,8 +6,14 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.*;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.slf4j.LoggerFactory;
 
 import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
@@ -122,8 +128,36 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
     @PluginProperty(group = "advanced")
     private Property<DeliverPolicy> deliverPolicy = Property.ofValue(DeliverPolicy.All);
 
+    // Lifecycle state for kill()/stop() support, mirroring RealtimeTrigger. Not a plugin property:
+    // must stay out of the JSON schema, Jackson (de)serialization, and trigger equality/toString,
+    // since the polling Trigger builds a fresh Consume per evaluate() cycle and compares/serializes
+    // the Trigger itself, not this transient task instance.
+    @Getter(AccessLevel.NONE)
+    @JsonIgnore
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private final transient AtomicBoolean isActive = new AtomicBoolean(true);
+
+    @Getter(AccessLevel.NONE)
+    @JsonIgnore
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private final transient AtomicReference<Connection> connectionRef = new AtomicReference<>();
+
+    @Getter(AccessLevel.NONE)
+    @JsonIgnore
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private final transient CountDownLatch waitForTermination = new CountDownLatch(1);
+
+    // Ceiling on kill()'s wait for the connection to close. Core dispatches kill() to every running
+    // task/trigger on the node from a single synchronized block (DefaultWorker), so an unbounded
+    // await() here would stall kill processing for everything else on the worker if teardown hangs.
+    private static final Duration TERMINATION_AWAIT_TIMEOUT = Duration.ofSeconds(30);
+
     public Output run(RunContext runContext) throws Exception {
         Connection connection = connect(runContext);
+        connectionRef.set(connection);
         JetStreamSubscription subscription = connection.jetStream(JetStreamOptions.DEFAULT_JS_OPTIONS).subscribe(
             runContext.render(subject),
             PullSubscribeOptions.builder()
@@ -144,6 +178,13 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
         try (OutputStream output = new BufferedOutputStream(new FileOutputStream(outputFile))) {
             AtomicReference<Integer> maxMessagesRemainingRef = new AtomicReference<>();
             do {
+                // Closes the window where kill()/stop() lands after connect() returns but before (or
+                // between) fetch() calls: check isActive before every poll, including the first,
+                // instead of relying solely on the while condition below.
+                if (!isActive.get()) {
+                    break;
+                }
+
                 Integer maxMessagesRemaining = runContext.render(maxRecords).as(Integer.class)
                     .map(max -> max - total.get())
                     .orElse(null);
@@ -151,10 +192,25 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
                 maxMessagesRemainingRef.set(maxMessagesRemaining);
 
                 batchSize = Optional.ofNullable(maxMessagesRemaining).map(max -> Math.min(batchSize, max)).orElse(batchSize);
-                messages = subscription.fetch(batchSize, runContext.render(pollDuration).as(Duration.class).orElseThrow());
+                try {
+                    messages = subscription.fetch(batchSize, runContext.render(pollDuration).as(Duration.class).orElseThrow());
+                } catch (IllegalStateException e) {
+                    // A kill()/stop() racing in on another thread closes the tracked connection, which
+                    // makes an in-flight fetch() throw. Expected in that case; a real error otherwise.
+                    if (!isActive.get()) {
+                        break;
+                    }
+                    throw e;
+                }
 
                 messages.forEach(throwConsumer(message ->
                 {
+                    // A kill() landing mid-batch must not ack messages that will never reach the
+                    // output file, so they remain available for redelivery (at-least-once).
+                    if (!isActive.get()) {
+                        return;
+                    }
+
                     Map<Object, Object> map = new HashMap<>();
 
                     map.put("subject", message.getSubject());
@@ -174,10 +230,21 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
                     total.incrementAndGet();
                 }));
             } while (
-                !isEnded(messages, maxMessagesRemainingRef.get(), pollStart, runContext)
+                isActive.get() && !isEnded(messages, maxMessagesRemainingRef.get(), pollStart, runContext)
             );
         } finally {
-            connection.close();
+            try {
+                connection.close();
+            } catch (Exception e) {
+                // Closing the connection from the killer thread makes this close() (and the one
+                // triggered by kill()/stop() itself) throw; tolerate that noise, but not a genuine
+                // close failure while the task is still active.
+                if (isActive.get()) {
+                    throw e;
+                }
+            } finally {
+                waitForTermination.countDown();
+            }
         }
 
         return Output.builder()
@@ -201,6 +268,52 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
         }
 
         return false;
+    }
+
+    /**
+     * Forwarded from the owning polling {@link Trigger}'s {@code kill()}. Blocks (up to a bounded
+     * timeout) until the poll loop has observed {@code isActive} and torn down its connection, so
+     * the caller can rely on the task being fully stopped once this returns.
+     */
+    public void kill() {
+        stop(true);
+    }
+
+    /**
+     * Forwarded from the owning polling {@link Trigger}'s {@code stop()}. Must be non-blocking:
+     * unlike {@link #kill()}, callers do not wait for teardown to complete.
+     */
+    public void stop() {
+        stop(false); // must be non-blocking
+    }
+
+    private void stop(boolean wait) {
+        if (!isActive.compareAndSet(true, false)) {
+            return;
+        }
+
+        // jnats has no wakeup() primitive to interrupt a blocked fetch(); closing the tracked
+        // connection is the only way to unblock it.
+        Optional.ofNullable(connectionRef.get()).ifPresent(connection -> {
+            try {
+                connection.close();
+            } catch (Exception e) {
+                LoggerFactory.getLogger(Consume.class)
+                    .debug("Failed to close NATS connection while stopping consume task id={}", this.id, e);
+            }
+        });
+
+        if (wait) {
+            try {
+                if (!waitForTermination.await(TERMINATION_AWAIT_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)) {
+                    LoggerFactory.getLogger(Consume.class).debug(
+                        "NATS consume task id={} did not terminate within {} of kill(); returning to avoid stalling the worker's kill dispatch",
+                        this.id, TERMINATION_AWAIT_TIMEOUT);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
     @Builder

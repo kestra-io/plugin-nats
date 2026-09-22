@@ -10,6 +10,7 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.hamcrest.Matchers;
@@ -156,5 +157,51 @@ class ConsumeTest extends NatsTest {
         assertThat(output.getMessagesCount(), is(1));
         assertThat(result.size(), is(1));
         Assertions.assertEquals("Second message", result.get(0).get("data"));
+    }
+
+    @Test
+    void shouldUnblockFetchOnKill() throws Exception {
+        // Empty, never-published-to subject: the first fetch() has nothing to return and blocks for
+        // the full pollDuration unless kill() closes the tracked connection to unblock it.
+        String subject = "kestra.consumeKill." + UUID.randomUUID();
+
+        Consume task = Consume.builder()
+            .url("localhost:4222")
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
+            .subject(subject)
+            .durableId(Property.ofValue("consumeKill-" + UUID.randomUUID()))
+            .pollDuration(Property.ofValue(Duration.ofSeconds(30)))
+            .build();
+
+        ExecutorService executorService = Executors.newSingleThreadExecutor();
+        try {
+            AtomicReference<Consume.Output> output = new AtomicReference<>();
+            AtomicReference<Throwable> thrown = new AtomicReference<>();
+            CountDownLatch completed = new CountDownLatch(1);
+            executorService.submit(() -> {
+                try {
+                    output.set(task.run(runContextFactory.of()));
+                } catch (Throwable t) {
+                    thrown.set(t);
+                } finally {
+                    completed.countDown();
+                }
+            });
+
+            // Give run() time to connect, subscribe, and enter the blocking fetch().
+            Thread.sleep(Duration.ofSeconds(3).toMillis());
+
+            long killStart = System.currentTimeMillis();
+            task.kill();
+            long killElapsedMs = System.currentTimeMillis() - killStart;
+
+            assertThat("kill() must not block for the full pollDuration", killElapsedMs, lessThan(15000L));
+            assertThat("run() must return promptly after kill()", completed.await(15, TimeUnit.SECONDS), is(true));
+            assertThat("A killed run() must not fail", thrown.get(), nullValue());
+            assertThat(output.get().getMessagesCount(), is(0));
+        } finally {
+            executorService.shutdownNow();
+        }
     }
 }
