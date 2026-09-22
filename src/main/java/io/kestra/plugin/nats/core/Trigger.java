@@ -161,9 +161,11 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
         }
 
         // A kill()/stop() landing mid-poll can still let task.run() return normally with some
-        // messages acked+written before teardown; re-check the flag here so a killed/stopped
-        // trigger never fires an execution off that partial batch.
-        if (killedOrStopped.get() || run.getMessagesCount() == 0) {
+        // messages already acked+written to the output file: those messages are committed in
+        // JetStream (never redelivered) regardless of the kill signal, so the execution must still
+        // fire for them or they are silently lost. Only an empty batch (nothing acked) is safe to
+        // skip.
+        if (run.getMessagesCount() == 0) {
             return Optional.empty();
         }
 
