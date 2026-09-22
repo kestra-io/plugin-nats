@@ -160,6 +160,36 @@ class ConsumeTest extends NatsTest {
     }
 
     @Test
+    void maxDurationKeepsPollingAcrossMultipleBatches() throws Exception {
+        // batchSize=1 forces one message per fetch: with maxDuration's isEnded() check inverted
+        // (bug), the loop stops after the very first batch since it always starts "before" the
+        // deadline. Fixed, it must keep polling additional batches until either messages run out
+        // or the maxDuration window actually elapses.
+        String subject = "kestra.consumeMaxDuration." + UUID.randomUUID();
+
+        try (Connection connection = Nats.connect(Options.builder().server("localhost:4222").userInfo("kestra", "k3stra").build())) {
+            JetStream jetStream = connection.jetStream();
+            jetStream.publish(subject, "First message".getBytes());
+            jetStream.publish(subject, "Second message".getBytes());
+
+            Consume.Output output = Consume.builder()
+                .url("localhost:4222")
+                .username(Property.ofValue("kestra"))
+                .password(Property.ofValue("k3stra"))
+                .subject(subject)
+                .durableId(Property.ofValue("consumeMaxDuration-" + UUID.randomUUID()))
+                .deliverPolicy(Property.ofValue(DeliverPolicy.All))
+                .pollDuration(Property.ofValue(Duration.ofMillis(500)))
+                .maxDuration(Property.ofValue(Duration.ofSeconds(3)))
+                .batchSize(1)
+                .build()
+                .run(runContextFactory.of());
+
+            assertThat(output.getMessagesCount(), is(2));
+        }
+    }
+
+    @Test
     void shouldUnblockFetchOnKill() throws Exception {
         // Empty, never-published-to subject: the first fetch() has nothing to return and blocks for
         // the full pollDuration unless kill() closes the tracked connection to unblock it.

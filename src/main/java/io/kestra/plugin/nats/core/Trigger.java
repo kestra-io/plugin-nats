@@ -160,7 +160,10 @@ public class Trigger extends AbstractTrigger implements PollingTriggerInterface,
             logger.debug("Found '{}' messages from '{}'", run.getMessagesCount(), runContext.render(subject));
         }
 
-        if (run.getMessagesCount() == 0) {
+        // A kill()/stop() landing mid-poll can still let task.run() return normally with some
+        // messages acked+written before teardown; re-check the flag here so a killed/stopped
+        // trigger never fires an execution off that partial batch.
+        if (killedOrStopped.get() || run.getMessagesCount() == 0) {
             return Optional.empty();
         }
 

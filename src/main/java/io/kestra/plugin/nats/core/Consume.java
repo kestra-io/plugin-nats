@@ -168,18 +168,34 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
     public Output run(RunContext runContext) throws Exception {
         Connection connection = connect(runContext);
         connectionRef.set(connection);
-        JetStreamSubscription subscription = connection.jetStream(JetStreamOptions.DEFAULT_JS_OPTIONS).subscribe(
-            runContext.render(subject),
-            PullSubscribeOptions.builder()
-                .configuration(
-                    ConsumerConfiguration.builder()
-                        .ackPolicy(AckPolicy.Explicit)
-                        .deliverPolicy(runContext.render(deliverPolicy).as(DeliverPolicy.class).orElseThrow())
-                        .startTime(runContext.render(since).as(String.class).map(ZonedDateTime::parse).orElse(null))
-                        .build()
-                )
-                .durable(runContext.render(durableId).as(String.class).orElse(null)).build()
-        );
+
+        JetStreamSubscription subscription;
+        try {
+            subscription = connection.jetStream(JetStreamOptions.DEFAULT_JS_OPTIONS).subscribe(
+                runContext.render(subject),
+                PullSubscribeOptions.builder()
+                    .configuration(
+                        ConsumerConfiguration.builder()
+                            .ackPolicy(AckPolicy.Explicit)
+                            .deliverPolicy(runContext.render(deliverPolicy).as(DeliverPolicy.class).orElseThrow())
+                            .startTime(runContext.render(since).as(String.class).map(ZonedDateTime::parse).orElse(null))
+                            .build()
+                    )
+                    .durable(runContext.render(durableId).as(String.class).orElse(null)).build()
+            );
+        } catch (RuntimeException e) {
+            // A kill()/stop() racing in before/during subscribe() closes the tracked connection,
+            // which makes subscribe() throw. Expected in that case; a real error otherwise.
+            if (!isActive.get()) {
+                try {
+                    closeConnectionOnce(connection);
+                } finally {
+                    waitForTermination.countDown();
+                }
+                return Output.builder().messagesCount(0).build();
+            }
+            throw e;
+        }
 
         Instant pollStart = Instant.now();
         List<Message> messages;
@@ -204,9 +220,12 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
                 batchSize = Optional.ofNullable(maxMessagesRemaining).map(max -> Math.min(batchSize, max)).orElse(batchSize);
                 try {
                     messages = subscription.fetch(batchSize, runContext.render(pollDuration).as(Duration.class).orElseThrow());
-                } catch (IllegalStateException e) {
+                } catch (RuntimeException e) {
                     // A kill()/stop() racing in on another thread closes the tracked connection, which
-                    // makes an in-flight fetch() throw. Expected in that case; a real error otherwise.
+                    // makes an in-flight fetch() throw. jnats does not guarantee a specific exception
+                    // type here (e.g. IllegalStateException vs a wrapped JetStreamStatusException), so
+                    // gate on our own intentional-stop flag rather than the exception's type; expected
+                    // in that case, a real error otherwise.
                     if (!isActive.get()) {
                         break;
                     }
@@ -273,7 +292,7 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
             return true;
         }
 
-        if (runContext.render(maxDuration).as(Duration.class).map(max -> Instant.now().isBefore(pollStart.plus(max))).orElse(false)) {
+        if (runContext.render(maxDuration).as(Duration.class).map(max -> !Instant.now().isBefore(pollStart.plus(max))).orElse(false)) {
             return true;
         }
 
