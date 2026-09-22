@@ -37,7 +37,7 @@ class TriggerKillTest {
         String subject = "kestra.trigger.kill." + IdUtils.create();
 
         Trigger trigger = Trigger.builder()
-            .id(TriggerKillTest.class.getSimpleName())
+            .id(IdUtils.create())
             .type(Trigger.class.getName())
             .url("localhost:4222")
             .username(Property.ofValue("kestra"))
@@ -87,7 +87,7 @@ class TriggerKillTest {
         String subject = "kestra.trigger.kill.early." + IdUtils.create();
 
         Trigger trigger = Trigger.builder()
-            .id(TriggerKillTest.class.getSimpleName())
+            .id(IdUtils.create())
             .type(Trigger.class.getName())
             .url("localhost:4222")
             .username(Property.ofValue("kestra"))
@@ -114,4 +114,20 @@ class TriggerKillTest {
         assertThat("evaluate() must skip the poll cycle instead of blocking on a fresh Consume",
             elapsedMs, lessThan(15000L));
     }
+
+    // Two narrower races are not covered by a dedicated test above, because there is no
+    // deterministic (non-flaky) way to hit them without adding test-only hooks to production code
+    // purely to make them observable:
+    //  1. kill() landing while Consume.run() is inside connect() (i.e. before connectionRef.set()
+    //     runs): stop() finds a null connectionRef and only flips isActive; the poll loop's own
+    //     pre-fetch isActive check (added for exactly this reason) then breaks before the first
+    //     fetch() once connect() returns. Reproducing this deterministically would require pausing
+    //     connect() itself, which is a NATS client call.
+    //  2. kill() landing between Trigger building its Consume task and publishing it via
+    //     activeConsumeTask.set(): covered logically by the re-check immediately after set() in
+    //     evaluate(), but the gap between build() and set() is a handful of instructions with no
+    //     safe way to inject a delay without changing production code for test convenience.
+    // shouldUnblockInFlightEvaluateOnKill (blocked in fetch()) and
+    // shouldSkipEvaluationWhenKillArrivesBeforeCycleStarts (killed before any cycle starts) remain
+    // the two races that are both realistic and deterministically testable.
 }

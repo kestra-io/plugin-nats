@@ -150,10 +150,20 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
     @EqualsAndHashCode.Exclude
     private final transient CountDownLatch waitForTermination = new CountDownLatch(1);
 
-    // Ceiling on kill()'s wait for the connection to close. Core dispatches kill() to every running
-    // task/trigger on the node from a single synchronized block (DefaultWorker), so an unbounded
-    // await() here would stall kill processing for everything else on the worker if teardown hangs.
-    private static final Duration TERMINATION_AWAIT_TIMEOUT = Duration.ofSeconds(30);
+    // Guards connection.close() so only one caller (the poll loop's own finally, or a racing
+    // stop()/kill()) ever actually closes it, instead of relying on jnats tolerating a double-close.
+    @Getter(AccessLevel.NONE)
+    @JsonIgnore
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private final transient AtomicBoolean connectionClosed = new AtomicBoolean(false);
+
+    // Ceiling on kill()'s wait for the connection to close, deliberately low: kill() is dispatched
+    // to every running task/trigger on the worker node from a single thread (see core's
+    // AbstractWorkerTriggerCallable#kill, which uses this exact 50ms bound for the same reason), so
+    // an unbounded (or merely "long", e.g. 30s) await() here would stall kill delivery and new job
+    // intake for everything else on that node if teardown hangs.
+    private static final Duration AWAIT_ON_KILL = Duration.ofMillis(50);
 
     public Output run(RunContext runContext) throws Exception {
         Connection connection = connect(runContext);
@@ -234,7 +244,7 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
             );
         } finally {
             try {
-                connection.close();
+                closeConnectionOnce(connection);
             } catch (Exception e) {
                 // Closing the connection from the killer thread makes this close() (and the one
                 // triggered by kill()/stop() itself) throw; tolerate that noise, but not a genuine
@@ -271,10 +281,12 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
     }
 
     /**
-     * Forwarded from the owning polling {@link Trigger}'s {@code kill()}. Blocks (up to a bounded
-     * timeout) until the poll loop has observed {@code isActive} and torn down its connection, so
-     * the caller can rely on the task being fully stopped once this returns.
+     * Forwarded from the owning polling {@link Trigger}'s {@code kill()}. Signals and closes the
+     * connection synchronously (fast), then blocks the calling thread only up to {@link
+     * #AWAIT_ON_KILL} for the poll loop to observe {@code isActive} and finish tearing down: long
+     * enough to usually avoid an interrupt, never long enough to stall the worker's kill dispatch.
      */
+    @Override
     public void kill() {
         stop(true);
     }
@@ -283,36 +295,46 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
      * Forwarded from the owning polling {@link Trigger}'s {@code stop()}. Must be non-blocking:
      * unlike {@link #kill()}, callers do not wait for teardown to complete.
      */
+    @Override
     public void stop() {
         stop(false); // must be non-blocking
     }
 
     private void stop(boolean wait) {
-        if (!isActive.compareAndSet(true, false)) {
-            return;
+        if (isActive.compareAndSet(true, false)) {
+            // This caller won the race to signal termination: it alone performs the teardown side.
+            // jnats has no wakeup() primitive to interrupt a blocked fetch(); closing the tracked
+            // connection is the only way to unblock it.
+            Optional.ofNullable(connectionRef.get()).ifPresent(connection -> {
+                try {
+                    closeConnectionOnce(connection);
+                } catch (Exception e) {
+                    LoggerFactory.getLogger(Consume.class)
+                        .debug("Failed to close NATS connection while stopping consume task id={}", this.id, e);
+                }
+            });
         }
-
-        // jnats has no wakeup() primitive to interrupt a blocked fetch(); closing the tracked
-        // connection is the only way to unblock it.
-        Optional.ofNullable(connectionRef.get()).ifPresent(connection -> {
-            try {
-                connection.close();
-            } catch (Exception e) {
-                LoggerFactory.getLogger(Consume.class)
-                    .debug("Failed to close NATS connection while stopping consume task id={}", this.id, e);
-            }
-        });
+        // A losing/concurrent caller must not skip the wait below: it still needs to honor its own
+        // wait=true contract even though teardown itself is being performed by another thread.
 
         if (wait) {
             try {
-                if (!waitForTermination.await(TERMINATION_AWAIT_TIMEOUT.toMillis(), TimeUnit.MILLISECONDS)) {
+                if (!waitForTermination.await(AWAIT_ON_KILL.toMillis(), TimeUnit.MILLISECONDS)) {
                     LoggerFactory.getLogger(Consume.class).debug(
                         "NATS consume task id={} did not terminate within {} of kill(); returning to avoid stalling the worker's kill dispatch",
-                        this.id, TERMINATION_AWAIT_TIMEOUT);
+                        this.id, AWAIT_ON_KILL);
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
+        }
+    }
+
+    // Ensures the connection is closed at most once regardless of which thread (the poll loop's own
+    // finally, or a racing stop()/kill()) gets there first.
+    private void closeConnectionOnce(Connection connection) throws Exception {
+        if (connection != null && connectionClosed.compareAndSet(false, true)) {
+            connection.close();
         }
     }
 
