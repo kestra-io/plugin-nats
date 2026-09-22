@@ -10,6 +10,7 @@ import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.hamcrest.Matchers;
@@ -156,5 +157,81 @@ class ConsumeTest extends NatsTest {
         assertThat(output.getMessagesCount(), is(1));
         assertThat(result.size(), is(1));
         Assertions.assertEquals("Second message", result.get(0).get("data"));
+    }
+
+    @Test
+    void maxDurationKeepsPollingAcrossMultipleBatches() throws Exception {
+        // batchSize=1 forces one message per fetch: with maxDuration's isEnded() check inverted
+        // (bug), the loop stops after the very first batch since it always starts "before" the
+        // deadline. Fixed, it must keep polling additional batches until either messages run out
+        // or the maxDuration window actually elapses.
+        String subject = "kestra.consumeMaxDuration." + UUID.randomUUID();
+
+        try (Connection connection = Nats.connect(Options.builder().server("localhost:4222").userInfo("kestra", "k3stra").build())) {
+            JetStream jetStream = connection.jetStream();
+            jetStream.publish(subject, "First message".getBytes());
+            jetStream.publish(subject, "Second message".getBytes());
+
+            Consume.Output output = Consume.builder()
+                .url("localhost:4222")
+                .username(Property.ofValue("kestra"))
+                .password(Property.ofValue("k3stra"))
+                .subject(subject)
+                .durableId(Property.ofValue("consumeMaxDuration-" + UUID.randomUUID()))
+                .deliverPolicy(Property.ofValue(DeliverPolicy.All))
+                .pollDuration(Property.ofValue(Duration.ofMillis(500)))
+                .maxDuration(Property.ofValue(Duration.ofSeconds(3)))
+                .batchSize(1)
+                .build()
+                .run(runContextFactory.of());
+
+            assertThat(output.getMessagesCount(), is(2));
+        }
+    }
+
+    @Test
+    void shouldUnblockFetchOnKill() throws Exception {
+        // Empty, never-published-to subject: the first fetch() has nothing to return and blocks for
+        // the full pollDuration unless kill() closes the tracked connection to unblock it.
+        String subject = "kestra.consumeKill." + UUID.randomUUID();
+
+        Consume task = Consume.builder()
+            .url("localhost:4222")
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
+            .subject(subject)
+            .durableId(Property.ofValue("consumeKill-" + UUID.randomUUID()))
+            .pollDuration(Property.ofValue(Duration.ofSeconds(30)))
+            .build();
+
+        ExecutorService executorService = Executors.newSingleThreadExecutor();
+        try {
+            AtomicReference<Consume.Output> output = new AtomicReference<>();
+            AtomicReference<Throwable> thrown = new AtomicReference<>();
+            CountDownLatch completed = new CountDownLatch(1);
+            executorService.submit(() -> {
+                try {
+                    output.set(task.run(runContextFactory.of()));
+                } catch (Throwable t) {
+                    thrown.set(t);
+                } finally {
+                    completed.countDown();
+                }
+            });
+
+            // Give run() time to connect, subscribe, and enter the blocking fetch().
+            Thread.sleep(Duration.ofSeconds(3).toMillis());
+
+            long killStart = System.currentTimeMillis();
+            task.kill();
+            long killElapsedMs = System.currentTimeMillis() - killStart;
+
+            assertThat("kill() must not block for the full pollDuration", killElapsedMs, lessThan(15000L));
+            assertThat("run() must return promptly after kill()", completed.await(15, TimeUnit.SECONDS), is(true));
+            assertThat("A killed run() must not fail", thrown.get(), nullValue());
+            assertThat(output.get().getMessagesCount(), is(0));
+        } finally {
+            executorService.shutdownNow();
+        }
     }
 }
