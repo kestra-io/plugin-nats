@@ -128,10 +128,6 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
     @PluginProperty(group = "advanced")
     private Property<DeliverPolicy> deliverPolicy = Property.ofValue(DeliverPolicy.All);
 
-    // Lifecycle state for kill()/stop() support, mirroring RealtimeTrigger. Not a plugin property:
-    // must stay out of the JSON schema, Jackson (de)serialization, and trigger equality/toString,
-    // since the polling Trigger builds a fresh Consume per evaluate() cycle and compares/serializes
-    // the Trigger itself, not this transient task instance.
     @Getter(AccessLevel.NONE)
     @JsonIgnore
     @ToString.Exclude
@@ -150,25 +146,17 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
     @EqualsAndHashCode.Exclude
     private final transient CountDownLatch waitForTermination = new CountDownLatch(1);
 
-    // Guards connection.close() so only one caller (the poll loop's own finally, or a racing
-    // stop()/kill()) ever actually closes it, instead of relying on jnats tolerating a double-close.
     @Getter(AccessLevel.NONE)
     @JsonIgnore
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private final transient AtomicBoolean connectionClosed = new AtomicBoolean(false);
 
-    // Ceiling on kill()'s wait for the connection to close, deliberately low: kill() is dispatched
-    // to every running task/trigger on the worker node from a single thread (see core's
-    // AbstractWorkerTriggerCallable#kill, which uses this exact 50ms bound for the same reason), so
-    // an unbounded (or merely "long", e.g. 30s) await() here would stall kill delivery and new job
-    // intake for everything else on that node if teardown hangs.
     private static final Duration AWAIT_ON_KILL = Duration.ofMillis(50);
 
     public Output run(RunContext runContext) throws Exception {
         Connection connection = connect(runContext);
         connectionRef.set(connection);
-
         JetStreamSubscription subscription;
         try {
             subscription = connection.jetStream(JetStreamOptions.DEFAULT_JS_OPTIONS).subscribe(
@@ -184,8 +172,6 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
                     .durable(runContext.render(durableId).as(String.class).orElse(null)).build()
             );
         } catch (RuntimeException e) {
-            // A kill()/stop() racing in before/during subscribe() closes the tracked connection,
-            // which makes subscribe() throw. Expected in that case; a real error otherwise.
             if (!isActive.get()) {
                 try {
                     closeConnectionOnce(connection);
@@ -204,9 +190,6 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
         try (OutputStream output = new BufferedOutputStream(new FileOutputStream(outputFile))) {
             AtomicReference<Integer> maxMessagesRemainingRef = new AtomicReference<>();
             do {
-                // Closes the window where kill()/stop() lands after connect() returns but before (or
-                // between) fetch() calls: check isActive before every poll, including the first,
-                // instead of relying solely on the while condition below.
                 if (!isActive.get()) {
                     break;
                 }
@@ -219,13 +202,11 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
 
                 batchSize = Optional.ofNullable(maxMessagesRemaining).map(max -> Math.min(batchSize, max)).orElse(batchSize);
                 try {
-                    messages = subscription.fetch(batchSize, runContext.render(pollDuration).as(Duration.class).orElseThrow());
+                    messages = subscription.fetch(
+                        batchSize,
+                        runContext.render(pollDuration).as(Duration.class).orElseThrow()
+                    );
                 } catch (RuntimeException e) {
-                    // A kill()/stop() racing in on another thread closes the tracked connection, which
-                    // makes an in-flight fetch() throw. jnats does not guarantee a specific exception
-                    // type here (e.g. IllegalStateException vs a wrapped JetStreamStatusException), so
-                    // gate on our own intentional-stop flag rather than the exception's type; expected
-                    // in that case, a real error otherwise.
                     if (!isActive.get()) {
                         break;
                     }
@@ -234,12 +215,9 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
 
                 messages.forEach(throwConsumer(message ->
                 {
-                    // A kill() landing mid-batch must not ack messages that will never reach the
-                    // output file, so they remain available for redelivery (at-least-once).
                     if (!isActive.get()) {
                         return;
                     }
-
                     Map<Object, Object> map = new HashMap<>();
 
                     map.put("subject", message.getSubject());
@@ -265,9 +243,6 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
             try {
                 closeConnectionOnce(connection);
             } catch (Exception e) {
-                // Closing the connection from the killer thread makes this close() (and the one
-                // triggered by kill()/stop() itself) throw; tolerate that noise, but not a genuine
-                // close failure while the task is still active.
                 if (isActive.get()) {
                     throw e;
                 }
@@ -298,32 +273,18 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
 
         return false;
     }
-
-    /**
-     * Forwarded from the owning polling {@link Trigger}'s {@code kill()}. Signals and closes the
-     * connection synchronously (fast), then blocks the calling thread only up to {@link
-     * #AWAIT_ON_KILL} for the poll loop to observe {@code isActive} and finish tearing down: long
-     * enough to usually avoid an interrupt, never long enough to stall the worker's kill dispatch.
-     */
     @Override
     public void kill() {
         stop(true);
     }
 
-    /**
-     * Forwarded from the owning polling {@link Trigger}'s {@code stop()}. Must be non-blocking:
-     * unlike {@link #kill()}, callers do not wait for teardown to complete.
-     */
     @Override
     public void stop() {
-        stop(false); // must be non-blocking
+        stop(false);
     }
 
     private void stop(boolean wait) {
         if (isActive.compareAndSet(true, false)) {
-            // This caller won the race to signal termination: it alone performs the teardown side.
-            // jnats has no wakeup() primitive to interrupt a blocked fetch(); closing the tracked
-            // connection is the only way to unblock it.
             Optional.ofNullable(connectionRef.get()).ifPresent(connection -> {
                 try {
                     closeConnectionOnce(connection);
@@ -333,24 +294,19 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
                 }
             });
         }
-        // A losing/concurrent caller must not skip the wait below: it still needs to honor its own
-        // wait=true contract even though teardown itself is being performed by another thread.
 
         if (wait) {
             try {
-                if (!waitForTermination.await(AWAIT_ON_KILL.toMillis(), TimeUnit.MILLISECONDS)) {
-                    LoggerFactory.getLogger(Consume.class).debug(
-                        "NATS consume task id={} did not terminate within {} of kill(); returning to avoid stalling the worker's kill dispatch",
-                        this.id, AWAIT_ON_KILL);
-                }
+                waitForTermination.await(
+                    AWAIT_ON_KILL.toMillis(),
+                    TimeUnit.MILLISECONDS
+                );
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
         }
     }
 
-    // Ensures the connection is closed at most once regardless of which thread (the poll loop's own
-    // finally, or a racing stop()/kill()) gets there first.
     private void closeConnectionOnce(Connection connection) throws Exception {
         if (connection != null && connectionClosed.compareAndSet(false, true)) {
             connection.close();
