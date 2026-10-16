@@ -1,6 +1,5 @@
 package io.kestra.plugin.nats.core;
 
-import io.kestra.core.models.annotations.PluginProperty;
 import java.time.Duration;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -12,6 +11,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
+import io.kestra.core.models.annotations.PluginProperty;
 import io.kestra.core.models.conditions.ConditionContext;
 import io.kestra.core.models.executions.Execution;
 import io.kestra.core.models.property.Property;
@@ -47,7 +47,7 @@ import lombok.experimental.SuperBuilder;
                     tasks:
                       - id: log
                         type: io.kestra.plugin.core.log.Log
-                        message: "{{ trigger.data }}"
+                        message: "Received {{ trigger.messagesCount }} messages, stored in {{ trigger.uri }}"
 
                     triggers:
                       - id: watch
