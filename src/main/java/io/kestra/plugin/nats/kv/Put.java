@@ -53,6 +53,25 @@ import lombok.experimental.SuperBuilder;
                         subKey1: some other value
                 """
         ),
+        @Example(
+            title = "Conditional put with expected revision (compare-and-set)",
+            full = true,
+            code = """
+                id: nats_kv_conditional_put
+                namespace: company.team
+
+                tasks:
+                  - id: conditional_put
+                    type: io.kestra.plugin.nats.kv.Put
+                    url: nats://localhost:4222
+                    username: nats_user
+                    password: "{{ secret('NATS_PASSWORD') }}"
+                    bucketName: my_bucket
+                    values:
+                      lock_key: acquired
+                    expectedRevision: 1
+                """
+        ),
     }
 )
 public class Put extends NatsConnection implements RunnableTask<Put.Output> {
@@ -75,19 +94,30 @@ public class Put extends NatsConnection implements RunnableTask<Put.Output> {
     @PluginProperty(group = "main")
     private Property<Map<String, Object>> values;
 
+    @Schema(
+        title = "Expected revision",
+        description = "Optional expected last revision number for conditional update (atomic compare-and-set). If provided, the update succeeds only if the key's current revision matches this value; otherwise, a JetStreamApiException is thrown."
+    )
+    @PluginProperty(group = "advanced")
+    private Property<Long> expectedRevision;
+
     @Override
     public Put.Output run(RunContext runContext) throws Exception {
         try (Connection connection = super.connect(runContext)) {
             KeyValue keyValue = connection.keyValue(runContext.render(this.bucketName));
 
+            Long expectedRev = this.expectedRevision != null ?
+                runContext.render(this.expectedRevision).as(Long.class).orElse(null) :
+                null;
+
             Map<String, Long> revisions = new HashMap<>();
             for (Map.Entry<String, Object> entry : runContext.render(this.values).asMap(String.class, Object.class).entrySet()) {
                 String key = entry.getKey();
+                byte[] bytes = mapper.writeValueAsString(entry.getValue()).getBytes();
 
-                long revision = keyValue.put(
-                    key,
-                    mapper.writeValueAsString(entry.getValue()).getBytes()
-                );
+                long revision = expectedRev != null ?
+                    keyValue.update(key, bytes, expectedRev) :
+                    keyValue.put(key, bytes);
 
                 revisions.put(key, revision);
             }

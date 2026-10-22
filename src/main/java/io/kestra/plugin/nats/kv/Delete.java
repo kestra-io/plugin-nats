@@ -47,6 +47,25 @@ import lombok.experimental.SuperBuilder;
                       - key2
                 """
         ),
+        @Example(
+            title = "Conditional delete with expected revision",
+            full = true,
+            code = """
+                id: nats_kv_conditional_delete
+                namespace: company.team
+
+                tasks:
+                  - id: conditional_delete
+                    type: io.kestra.plugin.nats.kv.Delete
+                    url: nats://localhost:4222
+                    username: nats_user
+                    password: "{{ secret('NATS_PASSWORD') }}"
+                    bucketName: my_bucket
+                    keys:
+                      - lock_key
+                    expectedRevision: 2
+                """
+        ),
     }
 )
 public class Delete extends NatsConnection implements RunnableTask<Delete.Output> {
@@ -67,14 +86,29 @@ public class Delete extends NatsConnection implements RunnableTask<Delete.Output
     @PluginProperty(group = "main")
     private Property<List<String>> keys;
 
+    @Schema(
+        title = "Expected revision",
+        description = "Optional expected last revision number for conditional delete. If provided, each key is deleted only if its current revision matches this value; otherwise, a JetStreamApiException is thrown."
+    )
+    @PluginProperty(group = "advanced")
+    private Property<Long> expectedRevision;
+
     @Override
     public Output run(RunContext runContext) throws Exception {
         try (Connection connection = super.connect(runContext)) {
             KeyValue keyValue = connection.keyValue(runContext.render(this.bucketName));
 
+            Long expectedRev = this.expectedRevision != null ?
+                runContext.render(this.expectedRevision).as(Long.class).orElse(null) :
+                null;
+
             int count = 0;
             for (String key : runContext.render(this.keys).asList(String.class)) {
-                keyValue.delete(key);
+                if (expectedRev != null) {
+                    keyValue.delete(key, expectedRev);
+                } else {
+                    keyValue.delete(key);
+                }
                 count++;
             }
 

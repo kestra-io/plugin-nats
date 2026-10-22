@@ -15,6 +15,7 @@ import jakarta.inject.Inject;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 @KestraTest
 public class DeleteTest {
@@ -55,6 +56,80 @@ public class DeleteTest {
             .run(runContextFactory.of());
 
         assertThat(getOutput.getOutput(), anEmptyMap());
+    }
+
+    @Test
+    public void deleteWithMatchingExpectedRevision() throws Exception {
+        String bucket = createBucket();
+
+        Put.Output putOutput = Put.builder()
+            .url("localhost:4222")
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
+            .bucketName(bucket)
+            .values(
+                Property.ofValue(
+                    Map.of("key_to_delete", "val")
+                )
+            )
+            .build()
+            .run(runContextFactory.of());
+
+        Long initialRev = putOutput.getRevisions().get("key_to_delete");
+        assertThat(initialRev, notNullValue());
+
+        Delete.Output deleteOutput = Delete.builder()
+            .url("localhost:4222")
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
+            .bucketName(bucket)
+            .keys(Property.ofValue(List.of("key_to_delete")))
+            .expectedRevision(Property.ofValue(initialRev))
+            .build()
+            .run(runContextFactory.of());
+
+        assertThat(deleteOutput.getDeletedCount(), is(1));
+
+        Get.Output getOutput = Get.builder()
+            .url("localhost:4222")
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
+            .bucketName(bucket)
+            .keys(Property.ofValue(List.of("key_to_delete")))
+            .build()
+            .run(runContextFactory.of());
+
+        assertThat(getOutput.getOutput(), anEmptyMap());
+    }
+
+    @Test
+    public void deleteWithMismatchedExpectedRevisionThrowsException() throws Exception {
+        String bucket = createBucket();
+
+        Put.builder()
+            .url("localhost:4222")
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
+            .bucketName(bucket)
+            .values(
+                Property.ofValue(
+                    Map.of("key_to_delete", "val")
+                )
+            )
+            .build()
+            .run(runContextFactory.of());
+
+        assertThrows(Exception.class, () -> {
+            Delete.builder()
+                .url("localhost:4222")
+                .username(Property.ofValue("kestra"))
+                .password(Property.ofValue("k3stra"))
+                .bucketName(bucket)
+                .keys(Property.ofValue(List.of("key_to_delete")))
+                .expectedRevision(Property.ofValue(9999L))
+                .build()
+                .run(runContextFactory.of());
+        });
     }
 
     public Map<String, Object> putPair(String bucket) throws Exception {
