@@ -11,8 +11,11 @@ import io.kestra.core.runners.RunContext;
 import io.kestra.plugin.nats.core.NatsConnection;
 
 import io.nats.client.Connection;
+import io.nats.client.JetStreamApiException;
 import io.nats.client.KeyValue;
+import io.nats.client.support.NatsJetStreamConstants;
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -88,31 +91,49 @@ public class Delete extends NatsConnection implements RunnableTask<Delete.Output
 
     @Schema(
         title = "Expected revision",
-        description = "Optional expected last revision number for conditional delete. If provided, each key is deleted only if its current revision matches this value; otherwise, a JetStreamApiException is thrown."
+        description = """
+            Delete only if the key is still at this revision, otherwise the task fails.
+            Unset means the delete is unconditional. Only allowed with a single key, because revisions are unique across a bucket.
+            """
     )
     @PluginProperty(group = "advanced")
-    private Property<Long> expectedRevision;
+    private Property<@Min(1) Long> expectedRevision;
 
     @Override
     public Output run(RunContext runContext) throws Exception {
         try (Connection connection = super.connect(runContext)) {
             KeyValue keyValue = connection.keyValue(runContext.render(this.bucketName));
 
-            Long expectedRev = this.expectedRevision != null ?
-                runContext.render(this.expectedRevision).as(Long.class).orElse(null) :
-                null;
+            var rExpectedRevision = runContext.render(this.expectedRevision).as(Long.class).orElse(null);
+            var rKeys = runContext.render(this.keys).asList(String.class);
+            if (rExpectedRevision != null && rKeys.size() > 1) {
+                throw new IllegalArgumentException("`expectedRevision` applies to a single key, but %d keys were given. Use one Delete task per key.".formatted(rKeys.size()));
+            }
 
             int count = 0;
-            for (String key : runContext.render(this.keys).asList(String.class)) {
-                if (expectedRev != null) {
-                    keyValue.delete(key, expectedRev);
-                } else {
+            for (var key : rKeys) {
+                if (rExpectedRevision == null) {
                     keyValue.delete(key);
+                } else {
+                    conditionalDelete(keyValue, key, rExpectedRevision);
                 }
                 count++;
             }
 
             return Output.builder().deletedCount(count).build();
+        }
+    }
+
+    private void conditionalDelete(KeyValue keyValue, String key, long rExpectedRevision) throws Exception {
+        try {
+            keyValue.delete(key, rExpectedRevision);
+        } catch (JetStreamApiException e) {
+            if (e.getApiErrorCode() == NatsJetStreamConstants.JS_WRONG_LAST_SEQUENCE) {
+                throw new IllegalStateException(
+                    "Key '%s' in bucket '%s' is not at revision %d. Read it again and retry.".formatted(key, keyValue.getBucketName(), rExpectedRevision), e
+                );
+            }
+            throw e;
         }
     }
 

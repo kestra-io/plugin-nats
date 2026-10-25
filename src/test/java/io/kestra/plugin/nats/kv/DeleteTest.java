@@ -60,9 +60,9 @@ public class DeleteTest {
 
     @Test
     public void deleteWithMatchingExpectedRevision() throws Exception {
-        String bucket = createBucket();
+        var bucket = createBucket();
 
-        Put.Output putOutput = Put.builder()
+        var putOutput = Put.builder()
             .url("localhost:4222")
             .username(Property.ofValue("kestra"))
             .password(Property.ofValue("k3stra"))
@@ -75,10 +75,10 @@ public class DeleteTest {
             .build()
             .run(runContextFactory.of());
 
-        Long initialRev = putOutput.getRevisions().get("key_to_delete");
+        var initialRev = putOutput.getRevisions().get("key_to_delete");
         assertThat(initialRev, notNullValue());
 
-        Delete.Output deleteOutput = Delete.builder()
+        var deleteOutput = Delete.builder()
             .url("localhost:4222")
             .username(Property.ofValue("kestra"))
             .password(Property.ofValue("k3stra"))
@@ -90,7 +90,7 @@ public class DeleteTest {
 
         assertThat(deleteOutput.getDeletedCount(), is(1));
 
-        Get.Output getOutput = Get.builder()
+        var getOutput = Get.builder()
             .url("localhost:4222")
             .username(Property.ofValue("kestra"))
             .password(Property.ofValue("k3stra"))
@@ -104,7 +104,7 @@ public class DeleteTest {
 
     @Test
     public void deleteWithMismatchedExpectedRevisionThrowsException() throws Exception {
-        String bucket = createBucket();
+        var bucket = createBucket();
 
         Put.builder()
             .url("localhost:4222")
@@ -119,7 +119,7 @@ public class DeleteTest {
             .build()
             .run(runContextFactory.of());
 
-        assertThrows(Exception.class, () -> {
+        var exception = assertThrows(IllegalStateException.class, () -> {
             Delete.builder()
                 .url("localhost:4222")
                 .username(Property.ofValue("kestra"))
@@ -130,6 +130,7 @@ public class DeleteTest {
                 .build()
                 .run(runContextFactory.of());
         });
+        assertThat(exception.getMessage(), containsString("is not at revision 9999"));
     }
 
     public Map<String, Object> putPair(String bucket) throws Exception {
@@ -153,6 +154,22 @@ public class DeleteTest {
             .run(runContextFactory.of());
 
         return keyValuePair;
+    }
+
+    @Test
+    public void deleteExpectedRevisionWithSeveralKeysIsRejected() throws Exception {
+        var bucket = createBucket();
+
+        var exception = assertThrows(IllegalArgumentException.class, () -> Delete.builder()
+            .url("localhost:4222")
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
+            .bucketName(bucket)
+            .keys(Property.ofValue(List.of("first", "second")))
+            .expectedRevision(Property.ofValue(1L))
+            .build()
+            .run(runContextFactory.of()));
+        assertThat(exception.getMessage(), containsString("single key"));
     }
 
     public String createBucket() throws Exception {

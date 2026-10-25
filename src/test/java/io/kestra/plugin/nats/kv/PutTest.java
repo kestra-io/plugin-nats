@@ -1,5 +1,6 @@
 package io.kestra.plugin.nats.kv;
 
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
@@ -47,9 +48,9 @@ public class PutTest {
 
     @Test
     public void putWithMatchingExpectedRevision() throws Exception {
-        String bucket = createBucket();
+        var bucket = createBucket();
 
-        Put.Output initialPut = Put.builder()
+        var initialPut = Put.builder()
             .url("localhost:4222")
             .username(Property.ofValue("kestra"))
             .password(Property.ofValue("k3stra"))
@@ -62,10 +63,10 @@ public class PutTest {
             .build()
             .run(runContextFactory.of());
 
-        Long initialRev = initialPut.getRevisions().get("lock_key");
+        var initialRev = initialPut.getRevisions().get("lock_key");
         assertThat(initialRev, notNullValue());
 
-        Put.Output conditionalPut = Put.builder()
+        var conditionalPut = Put.builder()
             .url("localhost:4222")
             .username(Property.ofValue("kestra"))
             .password(Property.ofValue("k3stra"))
@@ -75,16 +76,17 @@ public class PutTest {
                     Map.of("lock_key", "updated")
                 )
             )
-            .expectedRevision(Property.ofValue(initialRev))
+            // revisions usually come from a previous task output, so render it like a flow would
+            .expectedRevision(Property.ofExpression("{{ revision }}"))
             .build()
-            .run(runContextFactory.of());
+            .run(runContextFactory.of(Map.of("revision", initialRev)));
 
         assertThat(conditionalPut.getRevisions().get("lock_key"), greaterThan(initialRev));
     }
 
     @Test
     public void putWithMismatchedExpectedRevisionThrowsException() throws Exception {
-        String bucket = createBucket();
+        var bucket = createBucket();
 
         Put.builder()
             .url("localhost:4222")
@@ -99,7 +101,7 @@ public class PutTest {
             .build()
             .run(runContextFactory.of());
 
-        assertThrows(Exception.class, () -> {
+        var exception = assertThrows(IllegalStateException.class, () -> {
             Put.builder()
                 .url("localhost:4222")
                 .username(Property.ofValue("kestra"))
@@ -114,6 +116,58 @@ public class PutTest {
                 .build()
                 .run(runContextFactory.of());
         });
+        assertThat(exception.getMessage(), containsString("Key 'lock_key' in bucket '%s' is not at revision 9999".formatted(bucket)));
+    }
+
+    @Test
+    public void putWithRevisionZeroWritesOnlyMissingKeys() throws Exception {
+        var bucket = createBucket();
+
+        var created = conditionalPut(bucket, "lock_key", 0L);
+        assertThat(created.getRevisions().get("lock_key"), notNullValue());
+
+        var conflict = assertThrows(IllegalStateException.class, () -> conditionalPut(bucket, "lock_key", 0L));
+        assertThat(conflict.getMessage(), containsString("already exists"));
+
+        Delete.builder()
+            .url("localhost:4222")
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
+            .bucketName(bucket)
+            .keys(Property.ofValue(List.of("lock_key")))
+            .build()
+            .run(runContextFactory.of());
+
+        // A deleted key only keeps a delete marker, so revision 0 can create it again
+        assertThat(conditionalPut(bucket, "lock_key", 0L).getRevisions().get("lock_key"), greaterThan(created.getRevisions().get("lock_key")));
+    }
+
+    @Test
+    public void putExpectedRevisionWithSeveralKeysIsRejected() throws Exception {
+        var bucket = createBucket();
+
+        var exception = assertThrows(IllegalArgumentException.class, () -> Put.builder()
+            .url("localhost:4222")
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
+            .bucketName(bucket)
+            .values(Property.ofValue(Map.of("first", "a", "second", "b")))
+            .expectedRevision(Property.ofValue(1L))
+            .build()
+            .run(runContextFactory.of()));
+        assertThat(exception.getMessage(), containsString("single key"));
+    }
+
+    private Put.Output conditionalPut(String bucket, String key, long expectedRevision) throws Exception {
+        return Put.builder()
+            .url("localhost:4222")
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
+            .bucketName(bucket)
+            .values(Property.ofValue(Map.of(key, "locked")))
+            .expectedRevision(Property.ofValue(expectedRevision))
+            .build()
+            .run(runContextFactory.of());
     }
 
     public String createBucket() throws Exception {
