@@ -57,22 +57,22 @@ import lombok.experimental.SuperBuilder;
                 """
         ),
         @Example(
-            title = "Conditional put with expected revision (compare-and-set)",
+            title = "Acquire a lock only if no one holds it",
             full = true,
             code = """
-                id: nats_kv_conditional_put
+                id: nats_kv_acquire_lock
                 namespace: company.team
 
                 tasks:
-                  - id: conditional_put
+                  - id: acquire
                     type: io.kestra.plugin.nats.kv.Put
                     url: nats://localhost:4222
                     username: nats_user
                     password: "{{ secret('NATS_PASSWORD') }}"
                     bucketName: my_bucket
                     values:
-                      lock_key: acquired
-                    expectedRevision: 1
+                      lock_key: "{{ execution.id }}"
+                    expectedRevision: 0
                 """
         ),
     }
@@ -100,28 +100,29 @@ public class Put extends NatsConnection implements RunnableTask<Put.Output> {
     @Schema(
         title = "Expected revision",
         description = """
-            Write only if the key is still at this revision (compare-and-set), otherwise the task fails. `0` writes only if the key does not exist.
-            Unset means the write is unconditional. Only allowed with a single key, because revisions are unique across a bucket.
+            Write only if the key is still at this revision (compare-and-set), otherwise the task fails. Use the `revisions` output of a previous Put.
+            `0` writes only if the key does not exist. Must be 0 or greater. Unset means the write is unconditional.
+            Only allowed with a single key: a revision belongs to one key, and writes to several keys are not atomic.
             """
     )
-    @PluginProperty(group = "advanced")
+    @PluginProperty(group = "reliability")
     private Property<@Min(0) Long> expectedRevision;
 
     @Override
     public Put.Output run(RunContext runContext) throws Exception {
+        var rExpectedRevision = runContext.render(this.expectedRevision).as(Long.class).orElse(null);
+        var rValues = runContext.render(this.values).asMap(String.class, Object.class);
+        if (rExpectedRevision != null && rValues.size() > 1) {
+            throw new IllegalArgumentException("`expectedRevision` applies to a single key, but %d keys were given. Use one Put task per key.".formatted(rValues.size()));
+        }
+
         try (Connection connection = super.connect(runContext)) {
             KeyValue keyValue = connection.keyValue(runContext.render(this.bucketName));
 
-            var rExpectedRevision = runContext.render(this.expectedRevision).as(Long.class).orElse(null);
-            var rValues = runContext.render(this.values).asMap(String.class, Object.class);
-            if (rExpectedRevision != null && rValues.size() > 1) {
-                throw new IllegalArgumentException("`expectedRevision` applies to a single key, but %d keys were given. Use one Put task per key.".formatted(rValues.size()));
-            }
-
             Map<String, Long> revisions = new HashMap<>();
             for (var entry : rValues.entrySet()) {
-                String key = entry.getKey();
-                var bytes = mapper.writeValueAsString(entry.getValue()).getBytes();
+                var key = entry.getKey();
+                var bytes = mapper.writeValueAsBytes(entry.getValue());
 
                 var revision = rExpectedRevision == null ? keyValue.put(key, bytes) : conditionalWrite(keyValue, key, bytes, rExpectedRevision);
 
@@ -140,8 +141,10 @@ public class Put extends NatsConnection implements RunnableTask<Put.Output> {
             return rExpectedRevision == 0 ? keyValue.create(key, bytes) : keyValue.update(key, bytes, rExpectedRevision);
         } catch (JetStreamApiException e) {
             if (e.getApiErrorCode() == NatsJetStreamConstants.JS_WRONG_LAST_SEQUENCE) {
-                var reason = rExpectedRevision == 0 ? "already exists" : "is not at revision %d".formatted(rExpectedRevision);
-                throw new IllegalStateException("Key '%s' in bucket '%s' %s. Read it again and retry.".formatted(key, keyValue.getBucketName(), reason), e);
+                var reason = rExpectedRevision == 0
+                    ? "already exists. Set `expectedRevision` to its current revision to overwrite it"
+                    : "is not at revision %d. Read it again and retry".formatted(rExpectedRevision);
+                throw new IllegalStateException("Key '%s' in bucket '%s' %s.".formatted(key, keyValue.getBucketName(), reason), e);
             }
             throw e;
         }

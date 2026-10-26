@@ -51,14 +51,24 @@ import lombok.experimental.SuperBuilder;
                 """
         ),
         @Example(
-            title = "Conditional delete with expected revision",
+            title = "Release a lock only if it was not taken over in the meantime",
             full = true,
             code = """
-                id: nats_kv_conditional_delete
+                id: nats_kv_release_lock
                 namespace: company.team
 
                 tasks:
-                  - id: conditional_delete
+                  - id: acquire
+                    type: io.kestra.plugin.nats.kv.Put
+                    url: nats://localhost:4222
+                    username: nats_user
+                    password: "{{ secret('NATS_PASSWORD') }}"
+                    bucketName: my_bucket
+                    values:
+                      lock_key: "{{ execution.id }}"
+                    expectedRevision: 0
+
+                  - id: release
                     type: io.kestra.plugin.nats.kv.Delete
                     url: nats://localhost:4222
                     username: nats_user
@@ -66,7 +76,7 @@ import lombok.experimental.SuperBuilder;
                     bucketName: my_bucket
                     keys:
                       - lock_key
-                    expectedRevision: 2
+                    expectedRevision: "{{ outputs.acquire.revisions.lock_key }}"
                 """
         ),
     }
@@ -92,23 +102,24 @@ public class Delete extends NatsConnection implements RunnableTask<Delete.Output
     @Schema(
         title = "Expected revision",
         description = """
-            Delete only if the key is still at this revision, otherwise the task fails.
-            Unset means the delete is unconditional. Only allowed with a single key, because revisions are unique across a bucket.
+            Delete only if the key is still at this revision, otherwise the task fails. Use the `revisions` output of a previous Put.
+            Must be 1 or greater. Unset means the delete is unconditional.
+            Only allowed with a single key: a revision belongs to one key, and deletes of several keys are not atomic.
             """
     )
-    @PluginProperty(group = "advanced")
+    @PluginProperty(group = "reliability")
     private Property<@Min(1) Long> expectedRevision;
 
     @Override
     public Output run(RunContext runContext) throws Exception {
+        var rExpectedRevision = runContext.render(this.expectedRevision).as(Long.class).orElse(null);
+        var rKeys = runContext.render(this.keys).asList(String.class);
+        if (rExpectedRevision != null && rKeys.size() > 1) {
+            throw new IllegalArgumentException("`expectedRevision` applies to a single key, but %d keys were given. Use one Delete task per key.".formatted(rKeys.size()));
+        }
+
         try (Connection connection = super.connect(runContext)) {
             KeyValue keyValue = connection.keyValue(runContext.render(this.bucketName));
-
-            var rExpectedRevision = runContext.render(this.expectedRevision).as(Long.class).orElse(null);
-            var rKeys = runContext.render(this.keys).asList(String.class);
-            if (rExpectedRevision != null && rKeys.size() > 1) {
-                throw new IllegalArgumentException("`expectedRevision` applies to a single key, but %d keys were given. Use one Delete task per key.".formatted(rKeys.size()));
-            }
 
             int count = 0;
             for (var key : rKeys) {

@@ -10,8 +10,10 @@ import io.kestra.core.junit.annotations.KestraTest;
 import io.kestra.core.models.property.Property;
 import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.utils.IdUtils;
+import io.kestra.core.utils.TestsUtils;
 
 import jakarta.inject.Inject;
+import jakarta.validation.ConstraintViolationException;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
@@ -119,7 +121,8 @@ public class DeleteTest {
             .build()
             .run(runContextFactory.of());
 
-        var exception = assertThrows(IllegalStateException.class, () -> {
+        var exception = assertThrows(IllegalStateException.class, () ->
+        {
             Delete.builder()
                 .url("localhost:4222")
                 .username(Property.ofValue("kestra"))
@@ -131,6 +134,30 @@ public class DeleteTest {
                 .run(runContextFactory.of());
         });
         assertThat(exception.getMessage(), containsString("is not at revision 9999"));
+
+        var getOutput = Get.builder()
+            .url("localhost:4222")
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
+            .bucketName(bucket)
+            .keys(Property.ofValue(List.of("key_to_delete")))
+            .build()
+            .run(runContextFactory.of());
+        assertThat(getOutput.getOutput().get("key_to_delete"), is("val"));
+    }
+
+    @Test
+    public void deleteZeroExpectedRevisionIsRejected() {
+        var task = Delete.builder()
+            .id("delete-%s".formatted(IdUtils.create()))
+            .type(Delete.class.getName())
+            .url("localhost:4222")
+            .bucketName("unused")
+            .keys(Property.ofValue(List.of("lock_key")))
+            .expectedRevision(Property.ofValue(0L))
+            .build();
+
+        assertThrows(ConstraintViolationException.class, () -> task.run(TestsUtils.mockRunContext(runContextFactory, task, Map.of())));
     }
 
     public Map<String, Object> putPair(String bucket) throws Exception {
@@ -160,15 +187,17 @@ public class DeleteTest {
     public void deleteExpectedRevisionWithSeveralKeysIsRejected() throws Exception {
         var bucket = createBucket();
 
-        var exception = assertThrows(IllegalArgumentException.class, () -> Delete.builder()
-            .url("localhost:4222")
-            .username(Property.ofValue("kestra"))
-            .password(Property.ofValue("k3stra"))
-            .bucketName(bucket)
-            .keys(Property.ofValue(List.of("first", "second")))
-            .expectedRevision(Property.ofValue(1L))
-            .build()
-            .run(runContextFactory.of()));
+        var exception = assertThrows(
+            IllegalArgumentException.class, () -> Delete.builder()
+                .url("localhost:4222")
+                .username(Property.ofValue("kestra"))
+                .password(Property.ofValue("k3stra"))
+                .bucketName(bucket)
+                .keys(Property.ofValue(List.of("first", "second")))
+                .expectedRevision(Property.ofValue(1L))
+                .build()
+                .run(runContextFactory.of())
+        );
         assertThat(exception.getMessage(), containsString("single key"));
     }
 
