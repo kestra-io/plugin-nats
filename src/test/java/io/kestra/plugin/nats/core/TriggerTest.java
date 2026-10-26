@@ -16,6 +16,7 @@ import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.tenant.TenantService;
+import io.kestra.core.utils.TestsUtils;
 
 import jakarta.inject.Inject;
 
@@ -73,5 +74,27 @@ class TriggerTest extends io.kestra.plugin.nats.core.NatsTest {
                 )
             )
         );
+    }
+
+    @Test
+    void failedPollsDoNotLeakConnections() throws Exception {
+        int before = serverConnections();
+        Trigger trigger = Trigger.builder()
+            .id("failedPollsDoNotLeakConnections")
+            .type(Trigger.class.getName())
+            .url("localhost:4222")
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
+            // no JetStream stream matches this subject, so every poll fails
+            .subject("nostream." + UUID.randomUUID())
+            .pollDuration(Property.ofValue(java.time.Duration.ofSeconds(1)))
+            .build();
+
+        for (int i = 0; i < 3; i++) {
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            org.junit.jupiter.api.Assertions.assertThrows(Exception.class, () -> trigger.evaluate(context.getKey(), context.getValue()));
+        }
+
+        assertThat("failed polls left NATS connections open", awaitServerConnections(before), is(before));
     }
 }
