@@ -68,6 +68,10 @@ import lombok.experimental.SuperBuilder;
                       lock_key: "{{ execution.id }}"
                     expectedRevision: 0
 
+                  - id: work
+                    type: io.kestra.plugin.core.log.Log
+                    message: "Work done while holding the lock"
+
                   - id: release
                     type: io.kestra.plugin.nats.kv.Delete
                     url: nats://localhost:4222
