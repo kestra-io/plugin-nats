@@ -6,7 +6,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
-import io.kestra.core.exceptions.IllegalVariableEvaluationException;
 import io.kestra.core.models.annotations.Example;
 import io.kestra.core.models.annotations.Plugin;
 import io.kestra.core.models.property.Data;
@@ -22,7 +21,6 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import reactor.core.publisher.Flux;
 
 import static io.kestra.core.utils.Rethrow.throwFunction;
 import io.kestra.core.models.annotations.PluginProperty;
@@ -119,14 +117,15 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
     private Object from;
 
     public Output run(RunContext runContext) throws Exception {
+        String rSubject = runContext.render(this.subject);
         Connection connection = connect(runContext);
         int messagesCount = Data.from(this.from).read(runContext)
             .map(throwFunction(object ->
             {
                 connection.publish(
                     this.producerMessage(
-                        runContext.render(this.subject),
-                        runContext.render((Map<String, Object>) object)
+                        rSubject,
+                        object
                     )
                 );
                 return 1;
@@ -145,15 +144,6 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
         return Output.builder()
             .messagesCount(messagesCount)
             .build();
-    }
-
-    private Integer publish(RunContext runContext, Connection connection, Flux<Object> messagesFlowable) throws IllegalVariableEvaluationException {
-        return messagesFlowable.map(throwFunction(object ->
-        {
-            connection.publish(this.producerMessage(runContext.render(this.subject), runContext.render((Map<String, Object>) object)));
-            return 1;
-        })).reduce(Integer::sum)
-            .block();
     }
 
     private Message producerMessage(String subject, Map<String, Object> message) {

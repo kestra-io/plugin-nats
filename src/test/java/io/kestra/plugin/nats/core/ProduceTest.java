@@ -200,6 +200,88 @@ class ProduceTest extends NatsTest {
         );
     }
 
+    @Test
+    void produceDoesNotRenderMessagesReadFromStorage() throws Exception {
+        String subject = generateSubject();
+        RunContext runContext = runContextFactory.of();
+
+        File tempFile = runContext.workingDir().createTempFile(".ion").toFile();
+        try (OutputStream outputStream = new FileOutputStream(tempFile)) {
+            FileSerde.write(outputStream, Map.of("data", "Hello {{ name }}"));
+        }
+        URI uri = storageInterface.put(TenantService.MAIN_TENANT, null, URI.create("/" + IdUtils.create() + ".ion"), new FileInputStream(tempFile));
+
+        Produce.Output produceOutput = Produce.builder()
+            .url("localhost:4222")
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
+            .subject(subject)
+            .from(uri.toString())
+            .build()
+            .run(runContext);
+
+        Consume.Output consumeOutput = Consume.builder()
+            .url("localhost:4222")
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
+            .subject(subject)
+            .durableId(Property.ofValue("produceDoesNotRenderMessagesReadFromStorage-" + UUID.randomUUID()))
+            .deliverPolicy(Property.ofValue(DeliverPolicy.All))
+            .pollDuration(Property.ofValue(Duration.ofSeconds(3)))
+            .build()
+            .run(runContextFactory.of());
+
+        List<Map<String, Object>> result = toMessages(consumeOutput);
+
+        assertThat(produceOutput.getMessagesCount(), is(1));
+        assertThat(result.size(), is(1));
+        assertThat(
+            result, Matchers.contains(
+                Matchers.allOf(
+                    Matchers.hasEntry("subject", subject),
+                    Matchers.hasEntry("data", "Hello {{ name }}")
+                )
+            )
+        );
+    }
+
+    @Test
+    void produceRendersInlineMessagesOnlyOnce() throws Exception {
+        String subject = generateSubject();
+        Produce.Output produceOutput = Produce.builder()
+            .url("localhost:4222")
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
+            .subject(subject)
+            .from(Map.of("data", "{{ upstream }}"))
+            .build()
+            .run(runContextFactory.of(Map.of("upstream", "{{ 1 + 1 }}")));
+
+        Consume.Output consumeOutput = Consume.builder()
+            .url("localhost:4222")
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
+            .subject(subject)
+            .durableId(Property.ofValue("produceRendersInlineMessagesOnlyOnce-" + UUID.randomUUID()))
+            .deliverPolicy(Property.ofValue(DeliverPolicy.All))
+            .pollDuration(Property.ofValue(Duration.ofSeconds(3)))
+            .build()
+            .run(runContextFactory.of());
+
+        List<Map<String, Object>> result = toMessages(consumeOutput);
+
+        assertThat(produceOutput.getMessagesCount(), is(1));
+        assertThat(result.size(), is(1));
+        assertThat(
+            result, Matchers.contains(
+                Matchers.allOf(
+                    Matchers.hasEntry("subject", subject),
+                    Matchers.hasEntry("data", "{{ 1 + 1 }}")
+                )
+            )
+        );
+    }
+
     private static String generateSubject() {
         return BASE_SUBJECT + "." + UUID.randomUUID();
     }
