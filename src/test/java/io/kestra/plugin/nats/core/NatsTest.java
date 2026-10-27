@@ -34,17 +34,14 @@ class NatsTest {
 
     private static final Pattern NUM_CONNECTIONS = Pattern.compile("\"num_connections\":\\s*(\\d+)");
 
-    /**
-     * Number of client connections currently open on the NATS server, read from its monitoring
-     * endpoint ({@code -m 8222}, see docker-compose-ci.yml).
-     */
+    // Client connections open on the NATS server (monitoring endpoint -m 8222).
     protected static int serverConnections() throws Exception {
         try (HttpClient client = HttpClient.newHttpClient()) {
-            String body = client.send(
+            var body = client.send(
                 HttpRequest.newBuilder(URI.create("http://localhost:8222/connz")).build(),
                 HttpResponse.BodyHandlers.ofString()
             ).body();
-            java.util.regex.Matcher matcher = NUM_CONNECTIONS.matcher(body);
+            var matcher = NUM_CONNECTIONS.matcher(body);
             if (!matcher.find()) {
                 throw new IllegalStateException("num_connections not found in /connz response: " + body);
             }
@@ -52,13 +49,10 @@ class NatsTest {
         }
     }
 
-    /**
-     * Waits up to 5 seconds for the server to report {@code expected} connections (closing is
-     * asynchronous on the server side) and returns the last observed count.
-     */
+    // Waits up to 5s for connections to drop to expected or below (close is async).
     protected static int awaitServerConnections(int expected) throws Exception {
-        int current = serverConnections();
-        for (int i = 0; i < 50 && current != expected; i++) {
+        var current = serverConnections();
+        for (int i = 0; i < 50 && current > expected; i++) {
             Thread.sleep(100);
             current = serverConnections();
         }

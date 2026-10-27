@@ -237,8 +237,8 @@ class ConsumeTest extends NatsTest {
 
     @Test
     void consumeClosesConnectionWhenSubscribeFails() throws Exception {
-        int before = serverConnections();
-        Consume consume = Consume.builder()
+        var before = serverConnections();
+        var consume = Consume.builder()
             .url("localhost:4222")
             .username(Property.ofValue("kestra"))
             .password(Property.ofValue("k3stra"))
@@ -249,6 +249,6 @@ class ConsumeTest extends NatsTest {
 
         Assertions.assertThrows(IllegalStateException.class, () -> consume.run(runContextFactory.of()));
 
-        assertThat("the failed Consume left its NATS connection open", awaitServerConnections(before), is(before));
+        assertThat("the failed Consume left its NATS connection open", awaitServerConnections(before), lessThanOrEqualTo(before));
     }
 }

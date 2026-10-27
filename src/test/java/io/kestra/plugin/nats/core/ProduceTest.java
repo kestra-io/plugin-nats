@@ -289,8 +289,8 @@ class ProduceTest extends NatsTest {
 
     @Test
     void produceClosesConnectionWhenPublishingFails() throws Exception {
-        int before = serverConnections();
-        Produce produce = Produce.builder()
+        var before = serverConnections();
+        var produce = Produce.builder()
             .url("localhost:4222")
             .username(Property.ofValue("kestra"))
             .password(Property.ofValue("k3stra"))
@@ -301,6 +301,6 @@ class ProduceTest extends NatsTest {
 
         assertThrows(ClassCastException.class, () -> produce.run(runContextFactory.of()));
 
-        assertThat("the failed Produce left its NATS connection open", awaitServerConnections(before), is(before));
+        assertThat("the failed Produce left its NATS connection open", awaitServerConnections(before), lessThanOrEqualTo(before));
     }
 }

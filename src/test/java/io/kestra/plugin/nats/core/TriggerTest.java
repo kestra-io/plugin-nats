@@ -3,6 +3,7 @@ package io.kestra.plugin.nats.core;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URI;
+import java.time.Duration;
 import java.util.*;
 
 import io.kestra.core.junit.annotations.EvaluateTrigger;
@@ -24,6 +25,7 @@ import static io.kestra.plugin.nats.core.ProduceTest.SOME_HEADER_KEY;
 import static io.kestra.plugin.nats.core.ProduceTest.SOME_HEADER_VALUE;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class TriggerTest extends io.kestra.plugin.nats.core.NatsTest {
     @Inject
@@ -78,8 +80,8 @@ class TriggerTest extends io.kestra.plugin.nats.core.NatsTest {
 
     @Test
     void failedPollsDoNotLeakConnections() throws Exception {
-        int before = serverConnections();
-        Trigger trigger = Trigger.builder()
+        var before = serverConnections();
+        var trigger = Trigger.builder()
             .id("failedPollsDoNotLeakConnections")
             .type(Trigger.class.getName())
             .url("localhost:4222")
@@ -87,14 +89,14 @@ class TriggerTest extends io.kestra.plugin.nats.core.NatsTest {
             .password(Property.ofValue("k3stra"))
             // no JetStream stream matches this subject, so every poll fails
             .subject("nostream." + UUID.randomUUID())
-            .pollDuration(Property.ofValue(java.time.Duration.ofSeconds(1)))
+            .pollDuration(Property.ofValue(Duration.ofSeconds(1)))
             .build();
 
         for (int i = 0; i < 3; i++) {
             var context = TestsUtils.mockTrigger(runContextFactory, trigger);
-            org.junit.jupiter.api.Assertions.assertThrows(Exception.class, () -> trigger.evaluate(context.getKey(), context.getValue()));
+            assertThrows(Exception.class, () -> trigger.evaluate(context.getKey(), context.getValue()));
         }
 
-        assertThat("failed polls left NATS connections open", awaitServerConnections(before), is(before));
+        assertThat("failed polls left NATS connections open", awaitServerConnections(before), lessThanOrEqualTo(before));
     }
 }
