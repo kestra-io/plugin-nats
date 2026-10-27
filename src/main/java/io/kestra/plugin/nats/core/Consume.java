@@ -166,6 +166,9 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
     private static final Duration AWAIT_ON_KILL = Duration.ofMillis(50);
 
     public Output run(RunContext runContext) throws Exception {
+        // Create the temp file before opening a connection so a failure here cannot leak one.
+        File outputFile = runContext.workingDir().createTempFile(".ion").toFile();
+
         Connection connection = connect(runContext);
         connectionRef.set(connection);
 
@@ -183,15 +186,18 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
                     )
                     .durable(runContext.render(durableId).as(String.class).orElse(null)).build()
             );
-        } catch (RuntimeException e) {
+        } catch (Exception e) {
             // A kill()/stop() racing in before/during subscribe() closes the tracked connection,
-            // which makes subscribe() throw. Expected in that case; a real error otherwise.
+            // which makes subscribe() throw. Expected in that case; a real error otherwise. Either
+            // way the connection must be closed, or every failed run (and trigger poll) leaks it.
+            try {
+                closeConnectionOnce(connection);
+            } catch (Exception closeException) {
+                e.addSuppressed(closeException);
+            } finally {
+                waitForTermination.countDown();
+            }
             if (!isActive.get()) {
-                try {
-                    closeConnectionOnce(connection);
-                } finally {
-                    waitForTermination.countDown();
-                }
                 return Output.builder().messagesCount(0).build();
             }
             throw e;
@@ -200,7 +206,6 @@ public class Consume extends NatsConnection implements RunnableTask<Consume.Outp
         Instant pollStart = Instant.now();
         List<Message> messages;
         AtomicInteger total = new AtomicInteger();
-        File outputFile = runContext.workingDir().createTempFile(".ion").toFile();
         try (OutputStream output = new BufferedOutputStream(new FileOutputStream(outputFile))) {
             AtomicReference<Integer> maxMessagesRemainingRef = new AtomicReference<>();
             do {

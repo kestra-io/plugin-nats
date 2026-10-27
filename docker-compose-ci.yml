@@ -15,5 +15,8 @@ services:
       - 'kestra-server'
       - '-c'
       - '/js.conf'
+      - '-m'
+      - '8222'
     ports:
       - "4222:4222"
+      - "8222:8222"

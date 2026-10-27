@@ -3,6 +3,7 @@ package io.kestra.plugin.nats.core;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URI;
+import java.time.Duration;
 import java.util.*;
 
 import io.kestra.core.junit.annotations.EvaluateTrigger;
@@ -16,6 +17,7 @@ import io.kestra.core.runners.RunContextFactory;
 import io.kestra.core.serializers.FileSerde;
 import io.kestra.core.storages.StorageInterface;
 import io.kestra.core.tenant.TenantService;
+import io.kestra.core.utils.TestsUtils;
 
 import jakarta.inject.Inject;
 
@@ -23,6 +25,7 @@ import static io.kestra.plugin.nats.core.ProduceTest.SOME_HEADER_KEY;
 import static io.kestra.plugin.nats.core.ProduceTest.SOME_HEADER_VALUE;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class TriggerTest extends io.kestra.plugin.nats.core.NatsTest {
     @Inject
@@ -73,5 +76,27 @@ class TriggerTest extends io.kestra.plugin.nats.core.NatsTest {
                 )
             )
         );
+    }
+
+    @Test
+    void failedPollsDoNotLeakConnections() throws Exception {
+        var before = serverConnections();
+        var trigger = Trigger.builder()
+            .id("failedPollsDoNotLeakConnections")
+            .type(Trigger.class.getName())
+            .url("localhost:4222")
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
+            // no JetStream stream matches this subject, so every poll fails
+            .subject("nostream." + UUID.randomUUID())
+            .pollDuration(Property.ofValue(Duration.ofSeconds(1)))
+            .build();
+
+        for (int i = 0; i < 3; i++) {
+            var context = TestsUtils.mockTrigger(runContextFactory, trigger);
+            assertThrows(Exception.class, () -> trigger.evaluate(context.getKey(), context.getValue()));
+        }
+
+        assertThat("failed polls left NATS connections open", awaitServerConnections(before), lessThanOrEqualTo(before));
     }
 }

@@ -118,32 +118,31 @@ public class Produce extends NatsConnection implements RunnableTask<Produce.Outp
 
     public Output run(RunContext runContext) throws Exception {
         String rSubject = runContext.render(this.subject);
-        Connection connection = connect(runContext);
-        int messagesCount = Data.from(this.from).read(runContext)
-            .map(throwFunction(object ->
-            {
-                connection.publish(
-                    this.producerMessage(
-                        rSubject,
-                        object
-                    )
-                );
-                return 1;
-            }))
-            .reduce(Integer::sum)
-            .blockOptional()
-            .orElse(0);
+        try (Connection connection = connect(runContext)) {
+            int messagesCount = Data.from(this.from).read(runContext)
+                .map(throwFunction(object ->
+                {
+                    connection.publish(
+                        this.producerMessage(
+                            rSubject,
+                            object
+                        )
+                    );
+                    return 1;
+                }))
+                .reduce(Integer::sum)
+                .blockOptional()
+                .orElse(0);
 
-        // flush(Duration) sends a PING and blocks for the PONG, guaranteeing the server has
-        // processed every prior PUB (and, since a connection is processed in order, that
-        // JetStream has ingested them) before we close. flushBuffer() only pushes bytes into
-        // the socket and can race with close(), silently dropping the last message.
-        connection.flush(Duration.ofSeconds(5));
-        connection.close();
-
-        return Output.builder()
-            .messagesCount(messagesCount)
-            .build();
+            // flush(Duration) sends a PING and blocks for the PONG, guaranteeing the server has
+            // processed every prior PUB (and, since a connection is processed in order, that
+            // JetStream has ingested them) before we close. flushBuffer() only pushes bytes into
+            // the socket and can race with close(), silently dropping the last message.
+            connection.flush(Duration.ofSeconds(5));
+            return Output.builder()
+                .messagesCount(messagesCount)
+                .build();
+        }
     }
 
     private Message producerMessage(String subject, Map<String, Object> message) {

@@ -234,4 +234,21 @@ class ConsumeTest extends NatsTest {
             executorService.shutdownNow();
         }
     }
+
+    @Test
+    void consumeClosesConnectionWhenSubscribeFails() throws Exception {
+        var before = serverConnections();
+        var consume = Consume.builder()
+            .url("localhost:4222")
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
+            // no JetStream stream matches this subject, so subscribe() fails
+            .subject("nostream." + UUID.randomUUID())
+            .pollDuration(Property.ofValue(Duration.ofSeconds(1)))
+            .build();
+
+        Assertions.assertThrows(IllegalStateException.class, () -> consume.run(runContextFactory.of()));
+
+        assertThat("the failed Consume left its NATS connection open", awaitServerConnections(before), lessThanOrEqualTo(before));
+    }
 }

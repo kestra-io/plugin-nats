@@ -27,6 +27,7 @@ import jakarta.inject.Inject;
 import static io.kestra.core.utils.Rethrow.throwConsumer;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.*;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ProduceTest extends NatsTest {
     private static final String BASE_SUBJECT = "kestra.produce";
@@ -284,5 +285,22 @@ class ProduceTest extends NatsTest {
 
     private static String generateSubject() {
         return BASE_SUBJECT + "." + UUID.randomUUID();
+    }
+
+    @Test
+    void produceClosesConnectionWhenPublishingFails() throws Exception {
+        var before = serverConnections();
+        var produce = Produce.builder()
+            .url("localhost:4222")
+            .username(Property.ofValue("kestra"))
+            .password(Property.ofValue("k3stra"))
+            .subject(generateSubject())
+            // a non-string body (e.g. `data: 123` in YAML) makes publishing fail
+            .from(Map.of("data", 123))
+            .build();
+
+        assertThrows(ClassCastException.class, () -> produce.run(runContextFactory.of()));
+
+        assertThat("the failed Produce left its NATS connection open", awaitServerConnections(before), lessThanOrEqualTo(before));
     }
 }
